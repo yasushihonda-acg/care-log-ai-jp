@@ -22,7 +22,7 @@ export default async function handler(req: any, res: any) {
     let fieldsHint = "";
     const allKeys = new Set<string>();
 
-    // デフォルトのキーを追加（フォールバック用）
+    // デフォルトのキーを追加
     ['main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml', 'type', 'amount', 'characteristics', 'incontinence', 'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2', 'bath_type', 'skin_condition', 'notes', 'title', 'detail'].forEach(k => allKeys.add(k));
 
     if (fieldSettings) {
@@ -47,21 +47,24 @@ export default async function handler(req: any, res: any) {
 
       入力テキスト: "${text}"
 
-      【ステップ1】record_typeの決定
-      以下のいずれかを選択: 'meal'(食事), 'excretion'(排泄), 'vital'(バイタル), 'hygiene'(衛生), 'other'(その他)
+      【思考プロセス (Chain of Thought)】
+      回答を出力する前に、以下の手順で思考を行ってください。
+      1. 入力テキストに含まれる主要な要素（名詞、数値、単位）を特定する。
+      2. 複合的なデータ（例：「お茶200」）がある場合、種類と量に分離する。
+      3. 文脈から最適な記録種類（record_type）を決定する。
+      4. ユーザー定義フィールド（${fieldsHint}）と照らし合わせ、最も適切なキーに割り当てる。
 
-      【ステップ2】detailsの抽出
-      テキストから情報を抜き出し、ユーザーが定義したフィールド定義に基づいて適切なキーに割り当ててください。
-      値は無理に加工せず、ユーザーが言った内容をそのまま抽出してください。
-      
-      ${fieldsHint}
+      【Ambiguity Resolution (曖昧性解消ルール)】
+      - 「お茶200」「水分200」のような入力は、必ず「種類(fluid_type)」と「量(fluid_ml)」に分割してください。
+      - 「8割」「半分」などの割合は、そのまま「摂取率(amount_percent)」として扱ってください。
+      - 「熱36.8」は「体温(temperature)」に、「血圧120」は「血圧(systolic_bp)」にマッピングしてください。
 
       【抽出の具体例 (Few-Shot)】
-      以下のような入出力パターンを参考にしてください。
 
       例1: 食事記録（水分分離）
       入力: "お昼は全粥を8割食べて、お茶を200ml飲みました"
       出力: {
+        "thought": "食事の記録。主食は全粥、摂取率は8割。水分摂取もあり、種類はお茶、量は200mlと明言されている。",
         "record_type": "meal",
         "details": {
           "main_dish": "全粥",
@@ -71,9 +74,10 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      例2: バイタル記録
-      入力: "熱は36.8度、血圧124の78、SpO2は98です"
+      例2: 曖昧なバイタル記録
+      入力: "熱は36.8、血圧124の78、SpO2は98です"
       出力: {
+        "thought": "バイタル記録。'熱'は体温(temperature)で36.8。'血圧'は上が124(systolic_bp)、下が78(diastolic_bp)。SpO2は98。",
         "record_type": "vital",
         "details": {
           "temperature": "36.8度",
@@ -83,20 +87,20 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      例3: 排泄記録
-      入力: "多量の排尿がありました。色は普通です"
+      例3: 単純な排泄記録
+      入力: "多量の排尿がありました"
       出力: {
+        "thought": "排泄記録。種類は尿、量は多量。",
         "record_type": "excretion",
         "details": {
           "type": "尿",
-          "amount": "多量",
-          "characteristics": "普通"
+          "amount": "多量"
         }
       }
 
       【重要なルール】
-      - 該当する情報がない項目はJSONに含めないでください。
-      - 未知の単語があっても、文脈から最も適切なフィールド（例: 「とろみ茶」→ fluid_type）に割り当ててください。
+      - 値は無理に加工せず、ユーザーが言った内容をそのまま抽出してください。
+      - 未知の単語があっても、文脈から最も適切なフィールドに割り当ててください。
     `;
 
     const geminiResponse = await ai.models.generateContent({
@@ -107,6 +111,7 @@ export default async function handler(req: any, res: any) {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            thought: { type: Type.STRING, description: "抽出に至る思考プロセス" }, // CoT用フィールド
             record_type: {
               type: Type.STRING,
               enum: ['meal', 'excretion', 'vital', 'hygiene', 'other']
@@ -117,7 +122,7 @@ export default async function handler(req: any, res: any) {
             },
             suggested_date: { type: Type.STRING }
           },
-          required: ['record_type', 'details']
+          required: ['thought', 'record_type', 'details']
         }
       }
     });

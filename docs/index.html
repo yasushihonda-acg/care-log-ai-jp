@@ -117,8 +117,8 @@ sequenceDiagram
     Note over U, AI: AI解析フロー
     U->>FE: 音声/テキスト入力
     FE->>API: POST /api/parse (Text + Settings)
-    API->>AI: プロンプト送信 (Few-shot)
-    AI-->>API: JSON応答 (構造化データ)
+    API->>AI: プロンプト送信 (Chain of Thought)
+    AI-->>API: JSON応答 (Thought + Data)
     API-->>FE: 解析結果
     U->>FE: 確認・修正・保存
     FE->>API: POST /api/records
@@ -210,15 +210,21 @@ sequenceDiagram
 
                 <h2>AI解析ロジック (ハイブリッド設計)</h2>
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 my-4">
-                    <p class="font-bold text-blue-700">設計思想: Loose Schema & Frontend Validation</p>
+                    <p class="font-bold text-blue-700">設計思想: Chain of Thought & Loose Schema</p>
                     <p class="text-sm text-blue-600 mt-1">
-                        AIに対して厳密な数値変換（例: "8割"→80）を強制すると、パースエラーが多発します。<br>
-                        本システムでは、AIには<strong>「文字列としてそのまま抽出すること」</strong>を指示し、型制約を緩めることで入力成功率を最大化しています。
+                        AIはいきなり結果を出力せず、まず思考プロセス（Thought）を経てからJSONを生成します。<br>
+                        また、型制約を緩める（String型採用）ことで、単位付きの入力なども柔軟に受け入れます。
                     </p>
                 </div>
 
-                <h3>戦略: Few-Shot Prompting (例示による誘導)</h3>
-                <p>複雑なルールを言葉で説明する代わりに、<strong>「入力と理想的な出力のペア」</strong>をプロンプトに提示し、AIの挙動を制御しています。</p>
+                <h3>戦略1: Chain of Thought (思考の連鎖)</h3>
+                <p>入力文に含まれる情報を一度言語化して整理させることで、複雑なマッピングの精度を向上させます。</p>
+                <div class="bg-slate-800 text-slate-50 p-3 rounded text-xs mb-4">
+                    "thought": "水分摂取の記録です。種類はお茶、量は200mlと明言されています。"
+                </div>
+
+                <h3>戦略2: Ambiguity Resolution (曖昧性解消)</h3>
+                <p>「お茶200」のような複合データを適切に分離するためのFew-Shot学習データを組み込んでいます。</p>
                 
                 <div class="space-y-4 mt-4">
                     <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
@@ -228,16 +234,6 @@ sequenceDiagram
                             <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200">"お茶を200ml"</div>
                             <div class="text-slate-500">Output</div>
                             <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200 text-xs">fluid_type: "お茶", fluid_ml: "200ml"</div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                        <h4 class="font-bold text-sm text-slate-600">パターンB: 食事摂取率</h4>
-                        <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
-                            <div class="text-slate-500">Input</div>
-                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200">"全粥8割"</div>
-                            <div class="text-slate-500">Output</div>
-                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200 text-xs">main_dish: "全粥", amount_percent: "8割"</div>
                         </div>
                     </div>
                 </div>
