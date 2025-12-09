@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Mic, MicOff, Sparkles, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { ParseResponse, RECORD_TYPE_LABELS, FieldSetting } from '../types';
@@ -46,6 +47,32 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
     }
   };
 
+  // データのクレンジング（サニタイズ）関数
+  const sanitizeValue = (key: string, value: any): string => {
+    if (typeof value !== 'string') return String(value);
+    
+    // 全角数字を半角に変換
+    let s = value.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+
+    // 数値項目の場合、単位を除去して純粋な数値にする処理
+    // "80%" -> "80", "200ml" -> "200", "36.5℃" -> "36.5"
+    // ただし、"全粥"のような文字列はそのままにする
+    const numberPattern = /^(\d+(\.\d+)?)\s*(ml|l|cc|%|％|度|℃|回|分|mmHg)$/i;
+    const match = s.match(numberPattern);
+    
+    if (match) {
+      return match[1];
+    }
+    
+    // "8割" などの特殊対応
+    if (/^(\d+(\.\d+)?)割$/.test(s)) {
+       const num = parseFloat(s);
+       return isNaN(num) ? s : (num * 10).toString();
+    }
+
+    return s;
+  };
+
   // AI解析実行
   const handleParse = async () => {
     if (!inputText.trim()) return;
@@ -69,12 +96,13 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
       const type = data.record_type || 'other';
       const settings = fieldSettings[type] || [];
       
-      const mergedDetails = { ...data.details };
+      const mergedDetails: Record<string, any> = {};
       const filledKeys = new Set<string>();
 
-      // AIが値を抽出したキーを記録
+      // AI抽出データのサニタイズとマージ
       Object.entries(data.details).forEach(([key, value]) => {
         if (value !== '' && value !== null && value !== undefined) {
+          mergedDetails[key] = sanitizeValue(key, value);
           filledKeys.add(key);
         }
       });
@@ -204,7 +232,7 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
     const dataKeys = Object.keys(parsedData.details);
     
     // 設定にあるキー（順番通り）
-    const orderedKeys = settingKeys.filter(k => dataKeys.includes(k) || true); // 設定にあるものは必ず含める（handleTypeChangeで初期化済前提）
+    const orderedKeys = settingKeys.filter(k => dataKeys.includes(k) || true); // 設定にあるものは必ず含める
     
     // 設定にないキー（末尾に追加）
     const extraKeys = dataKeys.filter(k => !settingKeys.includes(k));
@@ -333,8 +361,8 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
                              placeholder={label ? `${label}を入力` : '値を入力'}
                              onChange={(e) => {
                                const val = e.target.value;
-                               const num = Number(val);
-                               updateDetail(key, (!isNaN(num) && val !== '') ? num : val);
+                               // 数値変換せず文字列として扱う（ユーザーが自由に入力できるように）
+                               updateDetail(key, val);
                              }}
                              className={`w-full p-2 text-sm border rounded outline-none bg-white text-gray-900 transition-all
                                ${isAiFilled 

@@ -26,71 +26,43 @@ export default async function handler(request: any, response: any) {
     ['main_dish', 'side_dish', 'amount_percent', 'fluid_ml', 'type', 'amount', 'characteristics', 'incontinence', 'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2', 'bath_type', 'skin_condition', 'notes', 'title', 'detail'].forEach(k => allKeys.add(k));
 
     if (fieldSettings) {
-      fieldsHint += "【フィールド定義（優先）】\n以下のrecord_typeごとのフィールド定義を最優先で使用してください:\n";
+      fieldsHint += "【使用すべきフィールド定義】\n";
       Object.entries(fieldSettings).forEach(([type, fields]: [string, any]) => {
-        const fieldDescriptions = fields.map((f: any) => `${f.key} (意味: ${f.label})`).join(", ");
-        fieldsHint += `- ${type}: ${fieldDescriptions}\n`;
-        
-        // スキーマ生成用にキーを収集
+        const fieldDescriptions = fields.map((f: any) => `"${f.key}"(${f.label})`).join(", ");
+        fieldsHint += `- ${type}の場合: ${fieldDescriptions}\n`;
         fields.forEach((f: any) => allKeys.add(f.key));
       });
     }
 
     // スキーマのプロパティを動的に構築
+    // AIの解析成功率を高めるため、あえて全ての値を STRING として定義します。
+    // 数値変換はフロントエンドまたはプロンプトの指示で緩やかに行います。
     const detailsProperties: Record<string, Schema> = {};
     allKeys.forEach(key => {
-      // 数値であることが確実なフィールド以外はSTRINGにする（AIの柔軟性のため）
-      if (['amount_percent', 'fluid_ml', 'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2'].includes(key)) {
-        detailsProperties[key] = { type: Type.NUMBER };
-      } else {
-        detailsProperties[key] = { type: Type.STRING };
-      }
+      detailsProperties[key] = { type: Type.STRING };
     });
 
     const prompt = `
-      あなたは日本の介護現場で働くプロフェッショナルな記録補助AIです。
-      入力された自然言語のテキスト（音声認識結果を含む）を解析し、適切な「記録種別」と「詳細データ」を抽出してください。
+      あなたは介護記録の入力補助AIです。
+      ユーザーの自然言語テキストから、記録の種類(record_type)と詳細情報(details)を抽出してください。
 
       入力テキスト: "${text}"
 
-      【指示】
-      1. record_type は以下から1つ選択してください。
-         - 'meal' (食事、水分、おやつ)
-         - 'excretion' (排泄、トイレ誘導、オムツ交換)
-         - 'vital' (体温、血圧、脈拍、SpO2などの測定)
-         - 'hygiene' (入浴、清拭、洗面、口腔ケア)
-         - 'other' (レク、リハビリ、転倒、その他申し送り)
+      【ステップ1】record_typeの決定
+      以下のいずれかを選択: 'meal'(食事), 'excretion'(排泄), 'vital'(バイタル), 'hygiene'(衛生), 'other'(その他)
 
-      2. details には、情報を可能な限り構造化して抽出してください。
-         - 文脈から明確な数値は number 型で出力してください。
-         - 日付や時刻の指定がある場合は suggested_date に ISO形式で出力してください。
-
-      【数値変換の重要ルール】
-      以下のフィールドは必ず「純粋な数値 (Number型)」のみを抽出してください。単位（ml, %, 割, 分など）は削除してください。
-
-      1. amount_percent (食事摂取率 0-100)
-         - "全部" "完食" "全量" -> 100
-         - "8割" "80%" "10中8" -> 80
-         - "半分" "1/2" "5割" -> 50
-         - "一口" "少し" "数口" -> 10
-         - "拒否" "なし" -> 0
-         - "主食8割、副食5割"のような場合、総合的な摂取率または主食の値を採用してください。
-
-      2. fluid_ml (水分摂取量 ml)
-         - "200ml" "200" "200cc" -> 200
-         - "コップ1杯" -> (文脈に具体的な量がなければ 200 とする)
-         - "お茶と牛乳で300" -> 300
-
-      3. バイタル値
-         - "36.5度" "36.5" -> 36.5
-         - "120の80" -> systolic_bp: 120, diastolic_bp: 80
-
+      【ステップ2】detailsの抽出
+      テキストから情報を抜き出し、適切なキーに割り当ててください。
+      
       ${fieldsHint}
 
-      【抽出のヒント（デフォルト）】
-      - 食事: main_dish(主食), side_dish(副食), amount_percent(数値0-100), fluid_ml(数値)
-      - 排泄: type(尿/便/失禁), amount(多量/普通/少量/数値), characteristics(泥状/硬便など)
-      - バイタル: temperature(36.5など), systolic_bp(上), diastolic_bp(下), pulse, spo2
+      【抽出のルールと例】
+      - 単位（ml, %, ℃, 度など）は可能な限り削除し、数値のみにしてください。
+      - 例1: "全粥8割" → { "main_dish": "全粥", "amount_percent": "80" } (※ "8"ではなく"80"にする)
+      - 例2: "お茶200" → { "fluid_ml": "200" } (※ "200ml"ではなく"200"にする)
+      - 例3: "熱36.5" → { "temperature": "36.5" }
+      - 例4: "半分食べた" → { "amount_percent": "50" }
+      - 不明な情報は空欄にするか、含めないでください。
     `;
 
     const geminiResponse = await ai.models.generateContent({
@@ -107,7 +79,7 @@ export default async function handler(request: any, response: any) {
             },
             details: {
               type: Type.OBJECT,
-              properties: detailsProperties // 動的に構築したプロパティを使用
+              properties: detailsProperties
             },
             suggested_date: { type: Type.STRING }
           },
