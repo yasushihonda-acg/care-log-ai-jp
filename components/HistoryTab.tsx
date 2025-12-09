@@ -28,6 +28,22 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
     return setting ? setting.label : key;
   };
 
+  // 表示順序を解決するヘルパー
+  const getSortedKeys = (recordType: string, details: Record<string, any>) => {
+    const settings = fieldSettings[recordType] || [];
+    const settingKeys = settings.map(s => s.key);
+    const detailKeys = Object.keys(details);
+
+    // 1. 設定にあるキー（設定順）かつ データが存在するもの
+    const orderedKeys = settingKeys.filter(k => detailKeys.includes(k));
+
+    // 2. 設定にないキー（データのキー順）- 末尾に追加
+    const extraKeys = detailKeys.filter(k => !settingKeys.includes(k));
+
+    // 重複を排除して結合
+    return Array.from(new Set([...orderedKeys, ...extraKeys]));
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -46,51 +62,56 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
-      {records.map((record) => (
-        <div key={record.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-50 rounded-lg">
-                {getIcon(record.record_type)}
+      {records.map((record) => {
+        const sortedKeys = getSortedKeys(record.record_type, record.details);
+
+        return (
+          <div key={record.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-50 rounded-lg">
+                  {getIcon(record.record_type)}
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-800">
+                    {RECORD_TYPE_LABELS[record.record_type] || record.record_type}
+                  </h4>
+                  <p className="text-sm text-gray-500">
+                    {record.recorded_at 
+                      ? format(new Date(record.recorded_at), 'yyyy/MM/dd HH:mm') 
+                      : '日時不明'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-gray-800">
-                  {RECORD_TYPE_LABELS[record.record_type] || record.record_type}
-                </h4>
-                <p className="text-sm text-gray-500">
-                  {record.recorded_at 
-                    ? format(new Date(record.recorded_at), 'yyyy/MM/dd HH:mm') 
-                    : '日時不明'}
-                </p>
-              </div>
+              <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                ID: {record.id}
+              </span>
             </div>
-            <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
-              ID: {record.id}
-            </span>
+            
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              {/* 詳細データを読みやすい形式で表示 */}
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {sortedKeys.map((key) => {
+                    const value = record.details[key];
+                    // 値が空の場合は表示しない
+                    if (value === '' || value === null || value === undefined) return null;
+                    
+                    return (
+                      <div key={key} className="flex flex-col border-b border-gray-100 pb-1 sm:border-none">
+                        <dt className="text-gray-500 text-xs font-medium">
+                          {getLabel(record.record_type, key)}
+                        </dt>
+                        <dd className="font-semibold text-gray-900 break-words">
+                          {String(value)}
+                        </dd>
+                      </div>
+                    );
+                  })}
+              </dl>
+            </div>
           </div>
-          
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-             {/* 詳細データを読みやすい形式で表示 */}
-             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                {Object.entries(record.details).map(([key, value]) => {
-                  // 値が空の場合は表示しない、または「なし」と表示する？今回は表示しない
-                  if (value === '' || value === null || value === undefined) return null;
-                  
-                  return (
-                    <div key={key} className="flex flex-col border-b border-gray-100 pb-1 sm:border-none">
-                      <dt className="text-gray-500 text-xs font-medium">
-                        {getLabel(record.record_type, key)}
-                      </dt>
-                      <dd className="font-semibold text-gray-900 break-words">
-                        {String(value)}
-                      </dd>
-                    </div>
-                  );
-                })}
-             </dl>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
