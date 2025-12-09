@@ -42,7 +42,7 @@ export default async function handler(request: any, response: any) {
     });
 
     const prompt = `
-      あなたは介護記録の入力補助AIです。
+      あなたは介護施設の記録補助AIです。
       ユーザーの自然言語テキストから、記録の種類(record_type)と詳細情報(details)を抽出してください。
 
       入力テキスト: "${text}"
@@ -52,13 +52,15 @@ export default async function handler(request: any, response: any) {
 
       【ステップ2】detailsの抽出
       テキストから情報を抜き出し、以下のフィールド定義に基づいて適切なキーに割り当ててください。
-      値はユーザーが言った内容をそのまま抽出してください。無理な変換や単位の削除は不要です。
+      値はユーザーが言った内容をそのまま抽出してください。
       
       ${fieldsHint}
 
-      【抽出のヒント】
+      【抽出の重要なヒント】
       - 該当する情報がない項目は含めないでください。
       - ユーザーの表現を尊重してください（例: "全粥8割" → "全粥", "8割" そのままでOK）。
+      - **水分摂取について**: 「何を」「どれくらい」飲んだかを可能な限り分けてください。
+        (例: "お茶を200ml" → fluid_type:"お茶", fluid_ml:"200ml")
     `;
 
     const geminiResponse = await ai.models.generateContent({
