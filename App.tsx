@@ -13,10 +13,45 @@ const App: React.FC = () => {
   const [records, setRecords] = useState<CareRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  // フィールド設定の状態管理 (localStorageから読み込み)
+  // Settings Hydration Logic
+  // localStorageに保存された設定には description (AIへの指示) が含まれていない可能性があるため、
+  // デフォルト設定の description を強制的にマージして、AIが賢く動作するように補正する。
+  const hydrateSettings = (savedSettings: Record<string, FieldSetting[]>): Record<string, FieldSetting[]> => {
+    const hydrated = { ...savedSettings };
+    
+    Object.keys(DEFAULT_FIELD_SETTINGS).forEach(type => {
+      if (hydrated[type]) {
+        hydrated[type] = hydrated[type].map(field => {
+          // デフォルト設定の中に同じキーを持つフィールドがあるか探す
+          const defaultField = DEFAULT_FIELD_SETTINGS[type].find(df => df.key === field.key);
+          if (defaultField && defaultField.description) {
+            // descriptionが欠けている、または古い場合は、デフォルトの強力なdescriptionで上書きする
+            return { ...field, description: defaultField.description };
+          }
+          return field;
+        });
+      } else {
+        // 設定そのものがなければデフォルトを使う
+        hydrated[type] = DEFAULT_FIELD_SETTINGS[type];
+      }
+    });
+    
+    return hydrated;
+  };
+
+  // フィールド設定の状態管理 (localStorageから読み込み + Hydration実行)
   const [fieldSettings, setFieldSettings] = useState<Record<string, FieldSetting[]>>(() => {
     const saved = localStorage.getItem('care_log_field_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_FIELD_SETTINGS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return hydrateSettings(parsed);
+      } catch (e) {
+        console.error("Failed to parse settings", e);
+        return DEFAULT_FIELD_SETTINGS;
+      }
+    }
+    return DEFAULT_FIELD_SETTINGS;
   });
 
   const saveSettings = (newSettings: Record<string, FieldSetting[]>) => {
