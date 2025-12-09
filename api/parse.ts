@@ -23,7 +23,7 @@ export default async function handler(request: any, response: any) {
     const allKeys = new Set<string>();
 
     // デフォルトのキーを追加（フォールバック用）
-    ['main_dish', 'side_dish', 'amount_percent', 'fluid_ml', 'type', 'amount', 'characteristics', 'incontinence', 'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2', 'bath_type', 'skin_condition', 'notes', 'title', 'detail'].forEach(k => allKeys.add(k));
+    ['main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml', 'type', 'amount', 'characteristics', 'incontinence', 'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2', 'bath_type', 'skin_condition', 'notes', 'title', 'detail'].forEach(k => allKeys.add(k));
 
     if (fieldSettings) {
       fieldsHint += "【使用すべきフィールド定義】\n";

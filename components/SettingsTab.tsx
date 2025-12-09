@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Save, Plus, Trash2, RotateCcw, Settings } from 'lucide-react';
+import { Save, Plus, Trash2, RotateCcw, Settings, AlertCircle } from 'lucide-react';
 import { FieldSetting, RECORD_TYPE_LABELS, DEFAULT_FIELD_SETTINGS } from '../types';
 
 interface SettingsTabProps {
@@ -12,17 +13,21 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ fieldSettings, onSaveSettings
   const [localSettings, setLocalSettings] = useState<Record<string, FieldSetting[]>>(fieldSettings);
   const [isSaved, setIsSaved] = useState(false);
 
-  // フィールドの更新
-  const updateField = (index: number, key: keyof FieldSetting, value: string) => {
+  // フィールドの更新（ラベルのみ）
+  const updateField = (index: number, value: string) => {
     const newFields = [...localSettings[activeType]];
-    newFields[index] = { ...newFields[index], [key]: value };
+    newFields[index] = { ...newFields[index], label: value };
     setLocalSettings({ ...localSettings, [activeType]: newFields });
     setIsSaved(false);
   };
 
-  // フィールドの追加
+  // フィールドの追加（キーはシステム側で自動生成）
   const addField = () => {
-    const newFields = [...localSettings[activeType], { key: '', label: '' }];
+    // タイムスタンプと乱数を組み合わせてユニークなキーを生成
+    // AIはこのキーとラベルのペアを使って値をマッピングするため、人間が読める英語である必要はありません
+    const autoKey = `f_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 5)}`;
+    
+    const newFields = [...localSettings[activeType], { key: autoKey, label: '' }];
     setLocalSettings({ ...localSettings, [activeType]: newFields });
     setIsSaved(false);
   };
@@ -43,11 +48,18 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ fieldSettings, onSaveSettings
 
   // デフォルトに戻す
   const handleReset = () => {
-    if (confirm('この種類の記録項目を初期設定に戻しますか？')) {
+    // 安全のため必ず確認ダイアログを出す
+    const isConfirmed = window.confirm(
+      `【確認】\n"${RECORD_TYPE_LABELS[activeType]}" の設定を初期値に戻しますか？\n\n※現在設定している項目は失われますが、過去の記録データ自体は消えません。`
+    );
+
+    if (isConfirmed) {
       const defaultFields = DEFAULT_FIELD_SETTINGS[activeType] || [];
       const newSettings = { ...localSettings, [activeType]: defaultFields };
       setLocalSettings(newSettings);
       onSaveSettings(newSettings);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
     }
   };
 
@@ -59,10 +71,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ fieldSettings, onSaveSettings
             <h2 className="text-lg font-bold text-gray-800">入力フィールド設定</h2>
         </div>
         
-        <p className="text-sm text-gray-500 mb-4">
-          記録作成時にデフォルトで表示される項目を設定します。<br/>
-          ここで設定した「項目名(ラベル)」は履歴や統計画面でも使用されます。
-        </p>
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 flex gap-3">
+          <AlertCircle className="text-blue-500 shrink-0 w-5 h-5" />
+          <p className="text-xs text-blue-700 leading-relaxed">
+            ここで設定した「項目名」は、AI解析時のヒントや、履歴・統計画面での表示に使用されます。<br/>
+            <strong>システム用のIDは自動で設定されるため、日本語の項目名を入力するだけでOKです。</strong>
+          </p>
+        </div>
 
         {/* タブ切り替え */}
         <div className="flex flex-wrap gap-2 mb-6">
@@ -84,37 +99,28 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ fieldSettings, onSaveSettings
         {/* フィールドエディタ */}
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-3">
             <div className="grid grid-cols-12 gap-2 text-xs font-bold text-gray-400 mb-2 px-2">
-                <div className="col-span-5">システム用キー (英語)</div>
-                <div className="col-span-6">表示ラベル (日本語)</div>
-                <div className="col-span-1"></div>
+                <div className="col-span-11">表示項目名 (日本語)</div>
+                <div className="col-span-1 text-center">削除</div>
             </div>
             
           {localSettings[activeType]?.map((field, index) => (
-            <div key={index} className="grid grid-cols-12 gap-2 items-center">
-              <div className="col-span-5">
-                <input
-                  type="text"
-                  value={field.key}
-                  onChange={(e) => updateField(index, 'key', e.target.value)}
-                  placeholder="例: temp"
-                  className="w-full p-2 text-sm border border-gray-200 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white text-gray-900"
-                />
-              </div>
-              <div className="col-span-6">
+            <div key={field.key} className="grid grid-cols-12 gap-2 items-center">
+              <div className="col-span-11">
                 <input
                   type="text"
                   value={field.label}
-                  onChange={(e) => updateField(index, 'label', e.target.value)}
-                  placeholder="例: 体温"
-                  className="w-full p-2 text-sm border border-gray-200 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white text-gray-900"
+                  onChange={(e) => updateField(index, e.target.value)}
+                  placeholder="項目名を入力 (例: 体温、食事量)"
+                  className="w-full p-3 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none bg-white text-gray-900 font-bold"
                 />
               </div>
               <div className="col-span-1 text-center">
                 <button
                   onClick={() => removeField(index)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  title="削除"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} />
                 </button>
               </div>
             </div>
@@ -122,29 +128,29 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ fieldSettings, onSaveSettings
 
           <button
             onClick={addField}
-            className="w-full py-2 flex items-center justify-center gap-1 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded border border-dashed border-blue-200 transition-colors"
+            className="w-full py-3 flex items-center justify-center gap-2 text-sm text-blue-600 font-bold hover:bg-blue-50 rounded-lg border-2 border-dashed border-blue-200 hover:border-blue-300 transition-all"
           >
-            <Plus size={16} /> 新しい項目を追加
+            <Plus size={18} /> 新しい項目を追加
           </button>
         </div>
 
         {/* アクションボタン */}
-        <div className="mt-6 flex gap-4">
+        <div className="mt-8 flex gap-4 pt-4 border-t border-gray-100">
             <button
                 onClick={handleReset}
-                className="px-4 py-2 flex items-center gap-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 font-bold text-sm transition-colors"
+                className="px-4 py-3 flex items-center gap-2 text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-red-600 font-bold text-sm transition-colors"
             >
                 <RotateCcw size={18} />
                 初期値に戻す
             </button>
             <button
                 onClick={handleSave}
-                className={`flex-1 px-4 py-2 flex items-center justify-center gap-2 text-white rounded-lg font-bold text-sm transition-all ${
+                className={`flex-1 px-4 py-3 flex items-center justify-center gap-2 text-white rounded-xl font-bold text-sm transition-all shadow-sm ${
                     isSaved ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
                 }`}
             >
-                <Save size={18} />
-                {isSaved ? '保存しました！' : '設定を保存'}
+                <Save size={20} />
+                {isSaved ? '設定を保存しました！' : 'この設定を保存する'}
             </button>
         </div>
 

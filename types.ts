@@ -1,3 +1,4 @@
+
 export interface CareRecord {
   id?: number;
   record_type: string;
@@ -37,6 +38,7 @@ export const DEFAULT_FIELD_SETTINGS: Record<string, FieldSetting[]> = {
     { key: 'main_dish', label: '主食内容' },
     { key: 'side_dish', label: '副食内容' },
     { key: 'amount_percent', label: '摂取率(%)' },
+    { key: 'fluid_type', label: '水分種類' },
     { key: 'fluid_ml', label: '水分摂取量(ml)' },
   ],
   excretion: [
