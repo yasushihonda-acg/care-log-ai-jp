@@ -62,7 +62,7 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">AI介護記録</h1>
           </div>
-          <div className="text-base sm:text-xl font-extrabold text-gray-900 tracking-wide">
+          <div className="text-sm sm:text-xl font-extrabold text-gray-900 tracking-wide">
             {new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
           </div>
         </div>

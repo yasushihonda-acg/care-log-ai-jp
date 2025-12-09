@@ -1,20 +1,21 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 
 // Initialize Gemini with the API Key from environment variables
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-export default async function handler(request: Request) {
+export default async function handler(request: any, response: any) {
   if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return response.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const body = await request.json();
+    const body = request.body;
     const text = body.text;
     const fieldSettings = body.fieldSettings; // フロントエンドから設定を受け取る
 
     if (!text) {
-      return new Response(JSON.stringify({ error: 'テキスト入力が必要です' }), { status: 400 });
+      return response.status(400).json({ error: 'テキスト入力が必要です' });
     }
 
     // 動的にプロンプトのヒントを作成
@@ -72,7 +73,7 @@ export default async function handler(request: Request) {
       - バイタル: temperature(36.5など), systolic_bp(上), diastolic_bp(下), pulse, spo2
     `;
 
-    const response = await ai.models.generateContent({
+    const geminiResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -95,17 +96,15 @@ export default async function handler(request: Request) {
       }
     });
 
-    const result = response.text;
-    if (!result) {
+    const resultText = geminiResponse.text;
+    if (!resultText) {
         throw new Error("AIからの応答がありません");
     }
 
-    return new Response(result, {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return response.status(200).json(JSON.parse(resultText));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gemini Parse Error:', error);
-    return new Response(JSON.stringify({ error: '解析に失敗しました' }), { status: 500 });
+    return response.status(500).json({ error: '解析に失敗しました', details: error.message });
   }
 }
