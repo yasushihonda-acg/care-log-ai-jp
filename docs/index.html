@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja" class="scroll-smooth">
 <head>
@@ -87,18 +88,18 @@
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
 <pre class="mermaid">
 graph TD
-    User[ユーザー (PC/Mobile)] -->|HTTPS / UI操作| FE[Frontend (React/Vite)]
+    User["ユーザー (PC/Mobile)"] -->|"HTTPS / UI操作"| FE["Frontend (React/Vite)"]
     
-    subgraph Vercel Platform
-        FE -->|API Call| API[Serverless Functions (/api)]
+    subgraph VercelPlatform ["Vercel Platform"]
+        FE -->|"API Call"| API["Serverless Functions (/api)"]
         
-        API -->|SQL Query| DB[(Vercel Postgres)]
-        API -->|GenAI Request| AI[Google Gemini API]
+        API -->|"SQL Query"| DB[("Vercel Postgres")]
+        API -->|"GenAI Request"| AI["Google Gemini API"]
     end
     
-    subgraph External Services
-        AI -->|Response| API
-        DB -->|Result| API
+    subgraph ExternalServices ["External Services"]
+        AI -->|"Response"| API
+        DB -->|"Result"| API
     end
 </pre>
                 </div>
@@ -107,11 +108,11 @@ graph TD
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
 <pre class="mermaid">
 sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant API as Vercel Function
-    participant DB as Postgres
-    participant AI as Gemini 2.5
+    participant U as "User"
+    participant FE as "Frontend"
+    participant API as "Vercel Function"
+    participant DB as "Postgres"
+    participant AI as "Gemini 2.5"
 
     Note over U, AI: AI解析フロー
     U->>FE: 音声/テキスト入力
