@@ -1,15 +1,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, History, BarChart2, Settings, MessageCircleQuestion } from 'lucide-react';
+import { ClipboardList, History, BarChart2, Settings } from 'lucide-react';
 import InputTab from './components/InputTab';
 import HistoryTab from './components/HistoryTab';
 import DashboardTab from './components/DashboardTab';
 import SettingsTab from './components/SettingsTab';
-import ChatTab from './components/ChatTab';
 import { CareRecord, DEFAULT_FIELD_SETTINGS, FieldSetting } from './types';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'input' | 'history' | 'dashboard' | 'settings' | 'chat'>('input');
+  const [activeTab, setActiveTab] = useState<'input' | 'history' | 'dashboard' | 'settings'>('input');
   const [records, setRecords] = useState<CareRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -71,26 +70,18 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-32">
-        <div className="py-6 px-2 sm:px-6">
+        <div className="py-6">
           {activeTab === 'input' && (
             <InputTab onRecordSaved={handleRecordSaved} fieldSettings={fieldSettings} />
           )}
           {activeTab === 'history' && (
-            <HistoryTab 
-              records={records} 
-              isLoading={isLoading} 
-              fieldSettings={fieldSettings}
-              onRecordsChange={fetchRecords} 
-            />
+            <HistoryTab records={records} isLoading={isLoading} fieldSettings={fieldSettings} />
           )}
           {activeTab === 'dashboard' && (
             <DashboardTab records={records} />
           )}
           {activeTab === 'settings' && (
             <SettingsTab fieldSettings={fieldSettings} onSaveSettings={saveSettings} />
-          )}
-          {activeTab === 'chat' && (
-            <ChatTab />
           )}
         </div>
       </main>
@@ -100,7 +91,7 @@ const App: React.FC = () => {
         <div className="max-w-md mx-auto flex justify-around">
           <button
             onClick={() => setActiveTab('input')}
-            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
               activeTab === 'input' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -110,7 +101,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
               activeTab === 'history' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -120,7 +111,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
               activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -129,18 +120,8 @@ const App: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('chat')}
-            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
-              activeTab === 'chat' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <MessageCircleQuestion size={24} />
-            <span className="text-[10px] font-bold mt-1">AI相談</span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
               activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
