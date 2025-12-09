@@ -217,13 +217,32 @@ sequenceDiagram
                     </p>
                 </div>
 
-                <h3>プロンプトエンジニアリング: 複合情報の分離</h3>
-                <p>Gemini Flashモデルに対し、具体的なFew-Shot（例示）を与えることで、情報の分離精度を高めています。</p>
-                <ul>
-                    <li><strong>水分摂取の分離:</strong> 「お茶200ml」という入力に対し、<code>fluid_type: "お茶"</code> と <code>fluid_ml: "200ml"</code> に分離して記録するよう指示しています。</li>
-                </ul>
+                <h3>戦略: Few-Shot Prompting (例示による誘導)</h3>
+                <p>複雑なルールを言葉で説明する代わりに、<strong>「入力と理想的な出力のペア」</strong>をプロンプトに提示し、AIの挙動を制御しています。</p>
+                
+                <div class="space-y-4 mt-4">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <h4 class="font-bold text-sm text-slate-600">パターンA: 水分摂取の分離</h4>
+                        <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
+                            <div class="text-slate-500">Input</div>
+                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200">"お茶を200ml"</div>
+                            <div class="text-slate-500">Output</div>
+                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200 text-xs">fluid_type: "お茶", fluid_ml: "200ml"</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <h4 class="font-bold text-sm text-slate-600">パターンB: 食事摂取率</h4>
+                        <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
+                            <div class="text-slate-500">Input</div>
+                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200">"全粥8割"</div>
+                            <div class="text-slate-500">Output</div>
+                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200 text-xs">main_dish: "全粥", amount_percent: "8割"</div>
+                        </div>
+                    </div>
+                </div>
 
-                <h2>動的フィールド設定</h2>
+                <h2 class="mt-8">動的フィールド設定</h2>
                 <p>施設ごとに異なる記録項目に対応するため、<code>localStorage</code> を利用したマスター設定機能を実装しています。</p>
                 <ul>
                     <li><strong>自動キー生成:</strong> ユーザーは日本語ラベルを入力するだけで、システム用ID (<code>f_xxxx</code>) が自動生成されます。</li>
