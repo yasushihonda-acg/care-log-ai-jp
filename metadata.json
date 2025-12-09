@@ -1,0 +1,7 @@
+{
+  "name": "care-log-ai",
+  "description": "AI-powered care documentation app using Gemini 2.5 and Vercel Postgres",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
