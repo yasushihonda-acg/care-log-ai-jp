@@ -47,32 +47,6 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
     }
   };
 
-  // データのクレンジング（サニタイズ）関数
-  const sanitizeValue = (key: string, value: any): string => {
-    if (typeof value !== 'string') return String(value);
-    
-    // 全角数字を半角に変換
-    let s = value.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-
-    // 数値項目の場合、単位を除去して純粋な数値にする処理
-    // "80%" -> "80", "200ml" -> "200", "36.5℃" -> "36.5"
-    // ただし、"全粥"のような文字列はそのままにする
-    const numberPattern = /^(\d+(\.\d+)?)\s*(ml|l|cc|%|％|度|℃|回|分|mmHg)$/i;
-    const match = s.match(numberPattern);
-    
-    if (match) {
-      return match[1];
-    }
-    
-    // "8割" などの特殊対応
-    if (/^(\d+(\.\d+)?)割$/.test(s)) {
-       const num = parseFloat(s);
-       return isNaN(num) ? s : (num * 10).toString();
-    }
-
-    return s;
-  };
-
   // AI解析実行
   const handleParse = async () => {
     if (!inputText.trim()) return;
@@ -99,10 +73,11 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
       const mergedDetails: Record<string, any> = {};
       const filledKeys = new Set<string>();
 
-      // AI抽出データのサニタイズとマージ
+      // AI抽出データ
+      // ここでは余計な加工（単位削除など）を行わず、AIが返した値をそのまま使います
       Object.entries(data.details).forEach(([key, value]) => {
         if (value !== '' && value !== null && value !== undefined) {
-          mergedDetails[key] = sanitizeValue(key, value);
+          mergedDetails[key] = String(value); // 単純に文字列化のみ行う
           filledKeys.add(key);
         }
       });
@@ -361,7 +336,6 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
                              placeholder={label ? `${label}を入力` : '値を入力'}
                              onChange={(e) => {
                                const val = e.target.value;
-                               // 数値変換せず文字列として扱う（ユーザーが自由に入力できるように）
                                updateDetail(key, val);
                              }}
                              className={`w-full p-2 text-sm border rounded outline-none bg-white text-gray-900 transition-all

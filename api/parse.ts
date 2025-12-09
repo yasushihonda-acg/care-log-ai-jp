@@ -35,8 +35,7 @@ export default async function handler(request: any, response: any) {
     }
 
     // スキーマのプロパティを動的に構築
-    // AIの解析成功率を高めるため、あえて全ての値を STRING として定義します。
-    // 数値変換はフロントエンドまたはプロンプトの指示で緩やかに行います。
+    // 全て STRING 型で受け取ることでエラーを防ぐ
     const detailsProperties: Record<string, Schema> = {};
     allKeys.forEach(key => {
       detailsProperties[key] = { type: Type.STRING };
@@ -52,17 +51,14 @@ export default async function handler(request: any, response: any) {
       以下のいずれかを選択: 'meal'(食事), 'excretion'(排泄), 'vital'(バイタル), 'hygiene'(衛生), 'other'(その他)
 
       【ステップ2】detailsの抽出
-      テキストから情報を抜き出し、適切なキーに割り当ててください。
+      テキストから情報を抜き出し、以下のフィールド定義に基づいて適切なキーに割り当ててください。
+      値はユーザーが言った内容をそのまま抽出してください。無理な変換や単位の削除は不要です。
       
       ${fieldsHint}
 
-      【抽出のルールと例】
-      - 単位（ml, %, ℃, 度など）は可能な限り削除し、数値のみにしてください。
-      - 例1: "全粥8割" → { "main_dish": "全粥", "amount_percent": "80" } (※ "8"ではなく"80"にする)
-      - 例2: "お茶200" → { "fluid_ml": "200" } (※ "200ml"ではなく"200"にする)
-      - 例3: "熱36.5" → { "temperature": "36.5" }
-      - 例4: "半分食べた" → { "amount_percent": "50" }
-      - 不明な情報は空欄にするか、含めないでください。
+      【抽出のヒント】
+      - 該当する情報がない項目は含めないでください。
+      - ユーザーの表現を尊重してください（例: "全粥8割" → "全粥", "8割" そのままでOK）。
     `;
 
     const geminiResponse = await ai.models.generateContent({
