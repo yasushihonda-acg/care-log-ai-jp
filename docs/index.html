@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Care Log - System Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📘</text></svg>">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+    <style>
+        /* Custom scrollbar for code blocks */
+        pre::-webkit-scrollbar {
+            height: 8px;
+        }
+        pre::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        .prose h2 {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .prose h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #1e293b;
+        }
+        .prose ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .prose p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans">
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-white border-r border-gray-200 fixed h-full hidden lg:block overflow-y-auto z-10">
+            <div class="p-6">
+                <div class="flex items-center gap-2 font-bold text-xl text-blue-600 mb-8">
+                    <span>📘</span>
+                    System Docs
+                </div>
+                <nav class="space-y-1">
+                    <a href="#architecture" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">1. アーキテクチャ設計</a>
+                    <a href="#database" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">2. データベース設計</a>
+                    <a href="#api" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">3. API 仕様書</a>
+                    <a href="#features" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">4. 機能仕様詳細</a>
+                </nav>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 text-xs text-gray-400">
+                Last Updated: 2025/12/10
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 lg:ml-64 p-4 lg:p-12 max-w-5xl mx-auto w-full">
+            
+            <!-- Mobile Header -->
+            <div class="lg:hidden mb-8 pb-4 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-slate-900">AI Care Log Documentation</h1>
+                <p class="text-sm text-slate-500 mt-1">System Design & API Reference</p>
+            </div>
+
+            <!-- 1. ARCHITECTURE -->
+            <section id="architecture" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+                <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <span class="bg-blue-100 text-blue-600 p-2 rounded-lg text-xl">1</span>
+                    アーキテクチャ設計
+                </h1>
+                
+                <h2>概要</h2>
+                <p><strong>プロジェクト名:</strong> AI介護記録アプリ (care-log-ai-jp)</p>
+                <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Flashモデル) で解析・構造化し、Vercel Postgresに保存・可視化するWebアプリケーションです。</p>
+
+                <h2>システム構成図</h2>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
+<pre class="mermaid">
+graph TD
+    User[ユーザー (PC/Mobile)] -->|HTTPS / UI操作| FE[Frontend (React/Vite)]
+    
+    subgraph Vercel Platform
+        FE -->|API Call| API[Serverless Functions (/api)]
+        
+        API -->|SQL Query| DB[(Vercel Postgres)]
+        API -->|GenAI Request| AI[Google Gemini API]
+    end
+    
+    subgraph External Services
+        AI -->|Response| API
+        DB -->|Result| API
+    end
+</pre>
+                </div>
+
+                <h2>データフロー (RAGチャット)</h2>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
+<pre class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend
+    participant API as Vercel Function
+    participant DB as Postgres
+    participant AI as Gemini 2.5
+
+    Note over U, AI: AI解析フロー
+    U->>FE: 音声/テキスト入力
+    FE->>API: POST /api/parse (Text + Settings)
+    API->>AI: プロンプト送信 (Few-shot)
+    AI-->>API: JSON応答 (構造化データ)
+    API-->>FE: 解析結果
+    U->>FE: 確認・修正・保存
+    FE->>API: POST /api/records
+    API->>DB: INSERT care_records
+
+    Note over U, AI: RAGチャットフロー
+    U->>FE: 「最近の食事量は？」
+    FE->>API: POST /api/chat
+    API->>DB: SELECT * FROM records LIMIT 50
+    DB-->>API: 記録データ
+    API->>AI: 記録データ + 質問を送信 (Context Injection)
+    AI-->>API: 回答生成
+    API-->>FE: 回答表示
+</pre>
+                </div>
+            </section>
+
+            <!-- 2. DATABASE -->
+            <section id="database" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+                <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <span class="bg-green-100 text-green-600 p-2 rounded-lg text-xl">2</span>
+                    データベース設計
+                </h1>
+
+                <h2>テーブル定義 (care_records)</h2>
+                <div class="bg-slate-800 text-slate-50 p-4 rounded-lg overflow-x-auto my-4">
+<pre><code>CREATE TABLE care_records (
+  id SERIAL PRIMARY KEY,
+  record_type VARCHAR(50) NOT NULL, -- 'meal', 'vital', 'excretion', etc.
+  details JSONB NOT NULL,           -- 柔軟な構造化データ
+  recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);</code></pre>
+                </div>
+
+                <h2>JSONBデータ構造パターン</h2>
+                <p>AI解析の成功率を高めるため、詳細は基本的に<strong>String型</strong>として保存されます。</p>
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <h4 class="font-bold text-sm text-slate-500 mb-2">食事 (meal)</h4>
+<pre class="text-xs bg-white p-2 rounded border border-slate-200"><code>{
+  "main_dish": "全粥",
+  "amount_percent": "80",
+  "fluid_ml": "200",
+  "fluid_type": "お茶"
+}</code></pre>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <h4 class="font-bold text-sm text-slate-500 mb-2">バイタル (vital)</h4>
+<pre class="text-xs bg-white p-2 rounded border border-slate-200"><code>{
+  "temperature": "36.8",
+  "systolic_bp": "124",
+  "pulse": "72"
+}</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. API -->
+            <section id="api" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+                <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <span class="bg-purple-100 text-purple-600 p-2 rounded-lg text-xl">3</span>
+                    API 仕様書
+                </h1>
+
+                <h3>POST /api/parse</h3>
+                <p>自然言語テキストを解析し、構造化データへ変換します。フロントエンドのフィールド設定を受け取り、動的にプロンプトを構築します。</p>
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-100 text-sm">
+                    <strong>Request:</strong>
+<pre class="mt-2 text-xs"><code>{
+  "text": "昼食は全粥8割、お茶200mlでした。",
+  "fieldSettings": { ... }
+}</code></pre>
+                </div>
+
+                <h3>GET /api/records</h3>
+                <p>記録一覧を取得します（最新100件）。</p>
+
+                <h3>POST /api/chat</h3>
+                <p>RAG (Retrieval-Augmented Generation) を利用したAI相談機能。直近50件の記録をコンテキストとして回答します。</p>
+            </section>
+
+            <!-- 4. FEATURES -->
+            <section id="features" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+                <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <span class="bg-orange-100 text-orange-600 p-2 rounded-lg text-xl">4</span>
+                    機能仕様詳細
+                </h1>
+
+                <h2>AI解析ロジック (ハイブリッド設計)</h2>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 my-4">
+                    <p class="font-bold text-blue-700">設計思想: Loose Schema & Frontend Validation</p>
+                    <p class="text-sm text-blue-600 mt-1">
+                        AIに対して厳密な数値変換（例: "8割"→80）を強制すると、パースエラーが多発します。<br>
+                        本システムでは、AIには<strong>「文字列としてそのまま抽出すること」</strong>を指示し、型制約を緩めることで入力成功率を最大化しています。
+                    </p>
+                </div>
+
+                <h3>プロンプトエンジニアリング: 複合情報の分離</h3>
+                <p>Gemini Flashモデルに対し、具体的なFew-Shot（例示）を与えることで、情報の分離精度を高めています。</p>
+                <ul>
+                    <li><strong>水分摂取の分離:</strong> 「お茶200ml」という入力に対し、<code>fluid_type: "お茶"</code> と <code>fluid_ml: "200ml"</code> に分離して記録するよう指示しています。</li>
+                </ul>
+
+                <h2>動的フィールド設定</h2>
+                <p>施設ごとに異なる記録項目に対応するため、<code>localStorage</code> を利用したマスター設定機能を実装しています。</p>
+                <ul>
+                    <li><strong>自動キー生成:</strong> ユーザーは日本語ラベルを入力するだけで、システム用ID (<code>f_xxxx</code>) が自動生成されます。</li>
+                    <li><strong>AI連携:</strong> 現在の設定項目が解析リクエスト時にAIへ送られ、AIは未知のカスタム項目であってもラベル名から推測して値を割り当てます。</li>
+                </ul>
+            </section>
+
+            <footer class="text-center text-slate-400 py-8 text-sm">
+                &copy; 2025 AI Care Log Project
+            </footer>
+        </main>
+    </div>
+</body>
+</html>
