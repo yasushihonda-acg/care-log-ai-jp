@@ -12,95 +12,89 @@ export default async function handler(req: any, res: any) {
   try {
     const body = req.body;
     const text = body.text;
-    const fieldSettings = body.fieldSettings; // フロントエンドから設定を受け取る
+    const fieldSettings = body.fieldSettings; // フロントエンドから設定（メタデータ含む）を受け取る
 
     if (!text) {
       return res.status(400).json({ error: 'テキスト入力が必要です' });
     }
 
-    // 動的にプロンプトのヒントを作成
-    let fieldsHint = "";
+    // 1. 動的にプロンプトの「フィールド定義書」を作成
+    // ここで key, label だけでなく description (メタデータ) を含めるのが重要
+    let fieldsDef = "【フィールド定義（このルールを厳守してください）】\n";
     const allKeys = new Set<string>();
 
-    // デフォルトのキーを追加
-    ['main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml', 'type', 'amount', 'characteristics', 'incontinence', 'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2', 'bath_type', 'skin_condition', 'notes', 'title', 'detail'].forEach(k => allKeys.add(k));
+    // デフォルトキーの確保（万が一設定が空の場合用）
+    ['thought', 'record_type', 'suggested_date'].forEach(k => allKeys.add(k));
 
     if (fieldSettings) {
-      fieldsHint += "【現在のフィールド定義（ここにある項目にマッピングしてください）】\n";
       Object.entries(fieldSettings).forEach(([type, fields]: [string, any]) => {
-        const fieldDescriptions = fields.map((f: any) => `"${f.key}"(${f.label})`).join(", ");
-        fieldsHint += `- ${type}の場合: ${fieldDescriptions}\n`;
-        fields.forEach((f: any) => allKeys.add(f.key));
+        fieldsDef += `\n### 記録タイプ: ${type}\n`;
+        fields.forEach((f: any) => {
+          allKeys.add(f.key);
+          // AIへの強力な指示となるメタデータ行
+          const desc = f.description ? ` (ルール: ${f.description})` : "";
+          fieldsDef += `- キー: "${f.key}", 表示名: "${f.label}"${desc}\n`;
+        });
       });
     }
 
-    // スキーマのプロパティを動的に構築
-    // 全て STRING 型で受け取ることでエラーを防ぐ (Loose Schema戦略)
+    // 2. スキーマ構築 (Loose Schema)
     const detailsProperties: Record<string, Schema> = {};
     allKeys.forEach(key => {
-      detailsProperties[key] = { type: Type.STRING };
+      // thoughtなどはルートレベルだが、念のため全部Stringで受ける準備
+      if (key !== 'thought' && key !== 'record_type' && key !== 'suggested_date') {
+        detailsProperties[key] = { type: Type.STRING };
+      }
     });
 
+    // 3. プロンプト構築 (Chain of Thought & Metadata Driven)
     const prompt = `
-      あなたは介護施設の記録補助AIです。
-      ユーザーの自然言語テキストから、記録の種類(record_type)と詳細情報(details)を抽出してください。
+      あなたは介護記録の構造化を行うAIスペシャリストです。
+      ユーザーの入力文から、適切な「記録タイプ(record_type)」を選択し、定義された「詳細データ(details)」を抽出してください。
 
       入力テキスト: "${text}"
 
-      【思考プロセス (Chain of Thought)】
-      回答を出力する前に、以下の手順で思考を行ってください。
-      1. 入力テキストに含まれる主要な要素（名詞、数値、単位）を特定する。
-      2. 複合的なデータ（例：「お茶200」）がある場合、種類と量に分離する。
-      3. 文脈から最適な記録種類（record_type）を決定する。
-      4. ユーザー定義フィールド（${fieldsHint}）と照らし合わせ、最も適切なキーに割り当てる。
+      ${fieldsDef}
 
-      【Ambiguity Resolution (曖昧性解消ルール)】
-      - 「お茶200」「水分200」のような入力は、必ず「種類(fluid_type)」と「量(fluid_ml)」に分割してください。
-      - 「8割」「半分」などの割合は、そのまま「摂取率(amount_percent)」として扱ってください。
-      - 「熱36.8」は「体温(temperature)」に、「血圧120」は「血圧(systolic_bp)」にマッピングしてください。
+      【解析ステップ (Chain of Thought)】
+      JSONを出力する前に、必ず 'thought' フィールドで以下の思考を行ってください。
+      1. **要素分解**: 入力文を名詞、数値、単位に分解する。（例：「お茶200」→「お茶」「200」）
+      2. **ルール照合**: 上記の「フィールド定義」のルールと照らし合わせる。（例：「お茶」は fluid_type、「200」は fluid_ml）
+      3. **曖昧性解消**: 数値と単位が混ざっている場合は分離し、定義に従って別々のキーに割り当てる。
 
-      【抽出の具体例 (Few-Shot)】
+      【Few-Shot Examples (学習データ)】
 
-      例1: 食事記録（水分分離）
-      入力: "お昼は全粥を8割食べて、お茶を200ml飲みました"
-      出力: {
-        "thought": "食事の記録。主食は全粥、摂取率は8割。水分摂取もあり、種類はお茶、量は200mlと明言されている。",
+      例1: 食事 (水分分離のケース)
+      Input: "昼食は全粥8割、お茶200ml"
+      Output:
+      {
+        "thought": "食事記録。主食は全粥、摂取率は8割。水分は『種類』と『量』に分離する必要がある。定義に従い、種類『お茶』は fluid_type、量『200』は fluid_ml に割り当てる。",
         "record_type": "meal",
         "details": {
           "main_dish": "全粥",
-          "amount_percent": "8割",
+          "amount_percent": "80",
           "fluid_type": "お茶",
-          "fluid_ml": "200ml"
+          "fluid_ml": "200"
         }
       }
 
-      例2: 曖昧なバイタル記録
-      入力: "熱は36.8、血圧124の78、SpO2は98です"
-      出力: {
-        "thought": "バイタル記録。'熱'は体温(temperature)で36.8。'血圧'は上が124(systolic_bp)、下が78(diastolic_bp)。SpO2は98。",
+      例2: バイタル
+      Input: "熱36.8、血圧124の78"
+      Output:
+      {
+        "thought": "バイタル記録。熱(体温)は36.8。血圧は上124、下78。定義に従い temperature, systolic_bp, diastolic_bp にマッピング。",
         "record_type": "vital",
         "details": {
-          "temperature": "36.8度",
+          "temperature": "36.8",
           "systolic_bp": "124",
-          "diastolic_bp": "78",
-          "spo2": "98"
+          "diastolic_bp": "78"
         }
       }
 
-      例3: 単純な排泄記録
-      入力: "多量の排尿がありました"
-      出力: {
-        "thought": "排泄記録。種類は尿、量は多量。",
-        "record_type": "excretion",
-        "details": {
-          "type": "尿",
-          "amount": "多量"
-        }
-      }
-
-      【重要なルール】
-      - 値は無理に加工せず、ユーザーが言った内容をそのまま抽出してください。
-      - 未知の単語があっても、文脈から最も適切なフィールドに割り当ててください。
+      【制約】
+      - 定義されていないキーは勝手に作らないでください。
+      - 該当するデータがないフィールドは出力に含めないでください。
+      - 値は基本的に文字列として出力してください。
     `;
 
     const geminiResponse = await ai.models.generateContent({
@@ -111,15 +105,9 @@ export default async function handler(req: any, res: any) {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            thought: { type: Type.STRING, description: "抽出に至る思考プロセス" }, // CoT用フィールド
-            record_type: {
-              type: Type.STRING,
-              enum: ['meal', 'excretion', 'vital', 'hygiene', 'other']
-            },
-            details: {
-              type: Type.OBJECT,
-              properties: detailsProperties
-            },
+            thought: { type: Type.STRING, description: "抽出に至る思考プロセス" },
+            record_type: { type: Type.STRING },
+            details: { type: Type.OBJECT, properties: detailsProperties },
             suggested_date: { type: Type.STRING }
           },
           required: ['thought', 'record_type', 'details']
