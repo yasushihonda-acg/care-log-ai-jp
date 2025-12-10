@@ -104,7 +104,7 @@ jobs:
         run: npm ci
 
       - name: Deploy Cloud Functions
-        run: firebase deploy --only functions --project ${{ env.GCP_PROJECT_ID }}
+        run: firebase deploy --only functions --project ${{ env.GCP_PROJECT_ID }} --force
 
   preview:
     name: Preview (PR)

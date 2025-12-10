@@ -104,13 +104,13 @@ Vercel Postgres → Firestore へのデータ移行スクリプトが必要（�
 
 ### Phase 4: アプリケーション移行
 - [x] Cloud Functions ソースコード作成
-- [ ] Cloud Functions デプロイ
-- [ ] フロントエンドのAPI endpoint 変更
-- [ ] Firebase Hosting へデプロイ
+- [x] Cloud Functions デプロイ
+- [x] フロントエンドのAPI endpoint 変更
+- [x] Firebase Hosting へデプロイ
 
 ### Phase 5: 検証
-- [ ] E2Eテスト
-- [ ] ドキュメント更新
+- [x] E2Eテスト (API動作確認済み)
+- [x] ドキュメント更新
 
 ## 6. 作成済みリソース
 
@@ -138,11 +138,19 @@ Vercel Postgres → Firestore へのデータ移行スクリプトが必要（�
 ### 6.4 Service Account
 - **名前:** `github-actions@care-log-ai-jp.iam.gserviceaccount.com`
 - **ロール:**
-  - roles/cloudfunctions.developer
+  - roles/cloudfunctions.admin
   - roles/firebasehosting.admin
   - roles/run.developer
   - roles/iam.serviceAccountUser
   - roles/artifactregistry.writer
+  - roles/serviceusage.serviceUsageAdmin
+  - roles/firebaseextensions.viewer
+
+### 6.5 デプロイ済みエンドポイント
+- **Firebase Hosting:** https://care-log-ai-jp.web.app
+- **Cloud Functions (parse):** https://asia-northeast1-care-log-ai-jp.cloudfunctions.net/parse
+- **Cloud Functions (records):** https://asia-northeast1-care-log-ai-jp.cloudfunctions.net/records
+- **Cloud Functions (chat):** https://asia-northeast1-care-log-ai-jp.cloudfunctions.net/chat
 
 ## 7. ファイル構成
 
