@@ -25,6 +25,7 @@
 - **音声入力対応**: Web Speech APIによる音声認識 (手動開始/停止)
 - **RAGチャット**: 過去の記録を参照したAI相談機能
 - **動的フィールド設定**: 施設ごとのカスタマイズ対応
+- **CSVエクスポート**: 履歴データをCSVファイルでダウンロード可能
 
 ## 技術スタック変遷
 
@@ -69,6 +70,7 @@ care-log-ai-jp/
 │   ├── API_REFERENCE.md    # API仕様書
 │   ├── DATABASE_SCHEMA.md  # データベース設計
 │   ├── VOICE_INPUT_SPEC.md # 音声入力仕様
+│   ├── CSV_EXPORT_SPEC.md  # CSVエクスポート仕様
 │   ├── TEST_REPORT.md      # テストレポート
 │   └── CHANGELOG.md        # 変更履歴
 ├── .github/
@@ -85,6 +87,7 @@ care-log-ai-jp/
 | [API_REFERENCE.md](./docs/API_REFERENCE.md) | APIエンドポイント詳細 |
 | [DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | Firestoreスキーマ |
 | [VOICE_INPUT_SPEC.md](./docs/VOICE_INPUT_SPEC.md) | 音声入力仕様・制限事項 |
+| [CSV_EXPORT_SPEC.md](./docs/CSV_EXPORT_SPEC.md) | CSVエクスポート機能仕様 |
 | [AI_PARSING_IMPROVEMENT.md](./docs/AI_PARSING_IMPROVEMENT.md) | AI解析改善計画 |
 | [CHANGELOG.md](./docs/CHANGELOG.md) | バージョン履歴 |
 

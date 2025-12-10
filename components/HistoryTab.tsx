@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Activity, Utensils, Droplets, User, FileText, Filter, ArrowUpDown, ChevronRight, X, Calendar, Pencil, Trash2, Save, Plus, Loader2 } from 'lucide-react';
+import { Activity, Utensils, Droplets, User, FileText, Filter, ArrowUpDown, ChevronRight, X, Calendar, Pencil, Trash2, Save, Plus, Loader2, Download } from 'lucide-react';
 import { CareRecord, RECORD_TYPE_LABELS, FieldSetting } from '../types';
 import { API_ENDPOINTS } from '../config';
 
@@ -103,6 +103,99 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
     });
     return result;
   }, [records, filterType, sortOrder]);
+
+  // CSVエクスポート関数
+  const exportToCsv = () => {
+    if (filteredRecords.length === 0) return;
+
+    // 全フィールドキーを収集（fieldSettingsから順序を保持）
+    const getAllDetailKeys = (): string[] => {
+      const allKeys: string[] = [];
+      const seenKeys = new Set<string>();
+      // fieldSettingsの順序でキーを追加
+      Object.values(fieldSettings).forEach(settings => {
+        settings.forEach(s => {
+          if (!seenKeys.has(s.key)) {
+            allKeys.push(s.key);
+            seenKeys.add(s.key);
+          }
+        });
+      });
+      return allKeys;
+    };
+
+    // キーからラベルを取得
+    const getKeyLabel = (key: string): string => {
+      for (const settings of Object.values(fieldSettings)) {
+        const found = settings.find(s => s.key === key);
+        if (found) return found.label;
+      }
+      return key;
+    };
+
+    // CSVエスケープ処理
+    const escapeCsvValue = (value: any): string => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // タイムスタンプフォーマット（ファイル名用）
+    const formatTimestamp = (): string => {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      const h = String(now.getHours()).padStart(2, '0');
+      const min = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      return `${y}${m}${d}_${h}${min}${s}`;
+    };
+
+    const detailKeys = getAllDetailKeys();
+    
+    // ヘッダー行
+    const headers = [
+      'ID',
+      '記録日時',
+      '種類',
+      '種類コード',
+      ...detailKeys.map(getKeyLabel)
+    ];
+
+    // データ行
+    const rows = filteredRecords.map(record => {
+      const recordedAt = record.recorded_at 
+        ? format(new Date(record.recorded_at), 'yyyy/MM/dd HH:mm')
+        : '';
+      const row = [
+        record.id || '',
+        recordedAt,
+        RECORD_TYPE_LABELS[record.record_type] || record.record_type,
+        record.record_type,
+        ...detailKeys.map(key => record.details?.[key] ?? '')
+      ];
+      return row.map(escapeCsvValue).join(',');
+    });
+
+    // CSV文字列作成（BOM付きUTF-8でExcel互換）
+    const bom = '\uFEFF';
+    const csvContent = bom + [headers.join(','), ...rows].join('\n');
+
+    // ダウンロード実行
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `care_records_${formatTimestamp()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // 更新処理
   const handleUpdate = async () => {
@@ -207,13 +300,24 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
           </select>
         </div>
 
-        <button 
-          onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-          className="flex items-center gap-2 text-sm font-bold text-gray-600 bg-gray-50 px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors w-full sm:w-auto justify-center"
-        >
-          <ArrowUpDown className="w-4 h-4" />
-          {sortOrder === 'desc' ? '新しい順' : '古い順'}
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button 
+            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center gap-2 text-sm font-bold text-gray-600 bg-gray-50 px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors flex-1 sm:flex-none justify-center"
+          >
+            <ArrowUpDown className="w-4 h-4" />
+            {sortOrder === 'desc' ? '新しい順' : '古い順'}
+          </button>
+
+          <button 
+            onClick={exportToCsv}
+            disabled={filteredRecords.length === 0}
+            className="flex items-center gap-2 text-sm font-bold text-white bg-blue-600 px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex-1 sm:flex-none justify-center"
+          >
+            <Download className="w-4 h-4" />
+            CSV
+          </button>
+        </div>
       </div>
 
       {/* テーブル表示 */}
