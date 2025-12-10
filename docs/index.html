@@ -97,28 +97,30 @@
                     </p>
                 </div>
 
-                <h2>技術スタック</h2>
+                <h2>技術スタック変遷</h2>
+                <p class="text-sm text-slate-600 mb-4">Google AI Studio (Build) → Vercel → GCP/Firebase という変遷を経て現在の構成に至りました。</p>
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                         <thead class="bg-slate-100">
                             <tr>
                                 <th class="px-4 py-2 text-left font-bold text-slate-600">カテゴリ</th>
-                                <th class="px-4 py-2 text-left font-bold text-slate-600">現行 (Vercel)</th>
-                                <th class="px-4 py-2 text-left font-bold text-slate-600">移行後 (GCP)</th>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600 text-xs">Phase 0<br>AI Studio</th>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600 text-xs">Phase 0.5<br>Vercel</th>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600 text-xs bg-green-50">Phase 1 (現行)<br>GCP/Firebase</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                            <tr><td class="px-4 py-2">Frontend</td><td class="px-4 py-2 font-mono text-blue-600">React (Vite)</td><td class="px-4 py-2 font-mono text-green-600">React (Vite)</td></tr>
-                            <tr><td class="px-4 py-2">Hosting</td><td class="px-4 py-2 font-mono text-blue-600">Vercel</td><td class="px-4 py-2 font-mono text-green-600">Firebase Hosting</td></tr>
-                            <tr><td class="px-4 py-2">Backend</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Functions</td><td class="px-4 py-2 font-mono text-green-600">Cloud Functions 2nd Gen</td></tr>
-                            <tr><td class="px-4 py-2">Database</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Postgres</td><td class="px-4 py-2 font-mono text-green-600">Firestore</td></tr>
-                            <tr><td class="px-4 py-2">AI Model</td><td class="px-4 py-2 font-mono text-blue-600">Gemini API (APIキー)</td><td class="px-4 py-2 font-mono text-green-600">Vertex AI (Workload Identity)</td></tr>
-                            <tr><td class="px-4 py-2">CI/CD</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Git Integration</td><td class="px-4 py-2 font-mono text-green-600">GitHub Actions + OIDC</td></tr>
+                            <tr><td class="px-4 py-2">Frontend</td><td class="px-4 py-2 font-mono text-slate-400 text-xs">-</td><td class="px-4 py-2 font-mono text-slate-500 text-xs">React (Vite)</td><td class="px-4 py-2 font-mono text-green-600">React (Vite)</td></tr>
+                            <tr><td class="px-4 py-2">Hosting</td><td class="px-4 py-2 font-mono text-slate-400 text-xs">-</td><td class="px-4 py-2 font-mono text-slate-500 text-xs">Vercel</td><td class="px-4 py-2 font-mono text-green-600">Firebase Hosting</td></tr>
+                            <tr><td class="px-4 py-2">Backend</td><td class="px-4 py-2 font-mono text-slate-400 text-xs">-</td><td class="px-4 py-2 font-mono text-slate-500 text-xs">Vercel Functions</td><td class="px-4 py-2 font-mono text-green-600">Cloud Functions 2nd Gen</td></tr>
+                            <tr><td class="px-4 py-2">Database</td><td class="px-4 py-2 font-mono text-slate-400 text-xs">-</td><td class="px-4 py-2 font-mono text-slate-500 text-xs">Vercel Postgres</td><td class="px-4 py-2 font-mono text-green-600">Firestore</td></tr>
+                            <tr><td class="px-4 py-2">AI Model</td><td class="px-4 py-2 font-mono text-slate-500 text-xs">Google AI Studio</td><td class="px-4 py-2 font-mono text-slate-500 text-xs">Gemini API (APIキー)</td><td class="px-4 py-2 font-mono text-green-600">Vertex AI (Workload Identity)</td></tr>
+                            <tr><td class="px-4 py-2">CI/CD</td><td class="px-4 py-2 font-mono text-slate-400 text-xs">-</td><td class="px-4 py-2 font-mono text-slate-500 text-xs">Vercel Git Integration</td><td class="px-4 py-2 font-mono text-green-600">GitHub Actions + OIDC</td></tr>
                         </tbody>
                     </table>
                 </div>
 
-                <h2>システム構成図 (GCP移行後)</h2>
+                <h2>システム構成図 (現行)</h2>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
 <pre class="mermaid">
 graph TD
