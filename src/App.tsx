@@ -1,21 +1,56 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, History, BarChart2, Settings } from 'lucide-react';
+import { ClipboardList, History, BarChart2, Settings, MessageCircleQuestion } from 'lucide-react';
 import InputTab from './components/InputTab';
 import HistoryTab from './components/HistoryTab';
 import DashboardTab from './components/DashboardTab';
 import SettingsTab from './components/SettingsTab';
+import ChatTab from './components/ChatTab';
 import { CareRecord, DEFAULT_FIELD_SETTINGS, FieldSetting } from './types';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'input' | 'history' | 'dashboard' | 'settings'>('input');
+  const [activeTab, setActiveTab] = useState<'input' | 'history' | 'dashboard' | 'settings' | 'chat'>('input');
   const [records, setRecords] = useState<CareRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  // フィールド設定の状態管理 (localStorageから読み込み)
+  // Settings Hydration Logic
+  // localStorageに保存された設定には description (AIへの指示) が含まれていない可能性があるため、
+  // デフォルト設定の description を強制的にマージして、AIが賢く動作するように補正する。
+  const hydrateSettings = (savedSettings: Record<string, FieldSetting[]>): Record<string, FieldSetting[]> => {
+    const hydrated = { ...savedSettings };
+    
+    Object.keys(DEFAULT_FIELD_SETTINGS).forEach(type => {
+      if (hydrated[type]) {
+        hydrated[type] = hydrated[type].map(field => {
+          // デフォルト設定の中に同じキーを持つフィールドがあるか探す
+          const defaultField = DEFAULT_FIELD_SETTINGS[type].find(df => df.key === field.key);
+          if (defaultField && defaultField.description) {
+            // descriptionが欠けている、または古い場合は、デフォルトの強力なdescriptionで上書きする
+            return { ...field, description: defaultField.description };
+          }
+          return field;
+        });
+      } else {
+        // 設定そのものがなければデフォルトを使う
+        hydrated[type] = DEFAULT_FIELD_SETTINGS[type];
+      }
+    });
+    
+    return hydrated;
+  };
+
+  // フィールド設定の状態管理 (localStorageから読み込み + Hydration実行)
   const [fieldSettings, setFieldSettings] = useState<Record<string, FieldSetting[]>>(() => {
     const saved = localStorage.getItem('care_log_field_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_FIELD_SETTINGS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return hydrateSettings(parsed);
+      } catch (e) {
+        console.error("Failed to parse settings", e);
+        return DEFAULT_FIELD_SETTINGS;
+      }
+    }
+    return DEFAULT_FIELD_SETTINGS;
   });
 
   const saveSettings = (newSettings: Record<string, FieldSetting[]>) => {
@@ -70,18 +105,26 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-32">
-        <div className="py-6">
+        <div className="py-6 px-2 sm:px-6">
           {activeTab === 'input' && (
             <InputTab onRecordSaved={handleRecordSaved} fieldSettings={fieldSettings} />
           )}
           {activeTab === 'history' && (
-            <HistoryTab records={records} isLoading={isLoading} fieldSettings={fieldSettings} />
+            <HistoryTab 
+              records={records} 
+              isLoading={isLoading} 
+              fieldSettings={fieldSettings}
+              onRecordsChange={fetchRecords} 
+            />
           )}
           {activeTab === 'dashboard' && (
             <DashboardTab records={records} />
           )}
           {activeTab === 'settings' && (
             <SettingsTab fieldSettings={fieldSettings} onSaveSettings={saveSettings} />
+          )}
+          {activeTab === 'chat' && (
+            <ChatTab />
           )}
         </div>
       </main>
@@ -91,7 +134,7 @@ const App: React.FC = () => {
         <div className="max-w-md mx-auto flex justify-around">
           <button
             onClick={() => setActiveTab('input')}
-            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
               activeTab === 'input' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -101,7 +144,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
               activeTab === 'history' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -111,7 +154,7 @@ const App: React.FC = () => {
           
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
               activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -120,8 +163,18 @@ const App: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('chat')}
+            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
+              activeTab === 'chat' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <MessageCircleQuestion size={24} />
+            <span className="text-[10px] font-bold mt-1">AI相談</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center py-3 px-6 w-full transition-colors ${
+            className={`flex flex-col items-center py-3 px-2 w-full transition-colors ${
               activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >

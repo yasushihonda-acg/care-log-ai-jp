@@ -58,8 +58,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
 
   // 一覧表示用の概要テキスト生成
   const getSummary = (record: CareRecord): string => {
-    const details = record.details;
-    if (!details) return '';
+    const details = record.details || {};
 
     switch (record.record_type) {
       case 'vital':
@@ -83,7 +82,9 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
         return String(details.bath_type || details.notes || '衛生ケア');
 
       default:
-        return String(details.title || details.detail || Object.values(details).join(' ').slice(0, 20) + '...');
+        // Ensure that any unknown value is converted to string
+        const fallback = details.title || details.detail || Object.values(details).join(' ');
+        return String(fallback).slice(0, 20) + (String(fallback).length > 20 ? '...' : '');
     }
   };
 
@@ -231,9 +232,9 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
                 </tr>
               </thead>
               <tbody>
-                {filteredRecords.map((record) => (
+                {filteredRecords.map((record, index) => (
                   <tr 
-                    key={record.id} 
+                    key={record.id || index} 
                     onClick={() => setSelectedRecord(record)}
                     className="bg-white border-b border-gray-50 hover:bg-blue-50 cursor-pointer transition-colors"
                   >
