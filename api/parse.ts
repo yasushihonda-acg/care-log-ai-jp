@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // FieldSetting型定義
 interface FieldSetting {
@@ -126,7 +126,7 @@ export default async function handler(req: any, res: any) {
     const schemaKeys = new Set([...allKeys, ...ALL_KNOWN_KEYS]);
     schemaKeys.forEach(key => {
       if (key !== 'record_type' && key !== 'suggested_date') {
-        detailsProperties[key] = { type: SchemaType.STRING };
+        detailsProperties[key] = { type: "string" };
       }
     });
 
@@ -206,11 +206,11 @@ export default async function handler(req: any, res: any) {
       config: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: SchemaType.OBJECT,
+          type: "object",
           properties: {
-            record_type: { type: SchemaType.STRING },
-            details: { type: SchemaType.OBJECT, properties: detailsProperties },
-            suggested_date: { type: SchemaType.STRING }
+            record_type: { type: "string" },
+            details: { type: "object", properties: detailsProperties },
+            suggested_date: { type: "string" }
           },
           required: ['record_type', 'details']
         }
