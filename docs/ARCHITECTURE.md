@@ -78,3 +78,18 @@ sequenceDiagram
     AI-->>API: 回答生成
     API-->>FE: 回答表示
 ```
+
+## 5. 技術的注意点
+
+### 5.1 Superset Schema 戦略
+Gemini APIの `responseSchema` は、Few-Shot例に含まれるキーがスキーマに未定義だとエラーを返す。この問題を回避するため、`ALL_KNOWN_KEYS` ですべての既知キーを常にスキーマに含める。
+
+### 5.2 予約語回避
+JavaScriptの予約語との衝突を避けるため、排泄種類は `type` ではなく `excretion_type` を使用。
+
+### 5.3 後方互換性
+既存データ（`type`キー）との互換性のため、表示コンポーネントではフォールバック処理を実装。
+
+```typescript
+const excType = details.excretion_type || details.type || '';
+```

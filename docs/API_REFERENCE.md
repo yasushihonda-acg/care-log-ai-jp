@@ -16,13 +16,19 @@ Base URL: `/api`
   "text": "昼食は全粥8割、お茶200mlでした。",
   "fieldSettings": {
     "meal": [
-      { "key": "main_dish", "label": "主食" },
-      { "key": "amount_percent", "label": "摂取率" }
-      ...
+      { "key": "main_dish", "label": "主食", "description": "食べた主食の種類（例：全粥、ご飯）" },
+      { "key": "amount_percent", "label": "摂取率", "description": "食事全体の摂取割合。数値のみ" },
+      { "key": "fluid_type", "label": "水分種類", "description": "摂取した水分の名称のみ" },
+      { "key": "fluid_ml", "label": "水分量(ml)", "description": "摂取した水分の量。数値のみ" }
+    ],
+    "excretion": [
+      { "key": "excretion_type", "label": "種類", "description": "排泄物の種類（尿、便）" }
     ]
   }
 }
 ```
+
+> **Note:** `description` フィールドはAIへの抽出ヒントとして機能します。省略された場合、サーバー側でデフォルト値が自動補完されます（Fail-Safe機構）。
 
 ### Response (200 OK)
 ```json
@@ -76,6 +82,9 @@ Base URL: `/api`
 *   **Endpoint:** `DELETE /api/records`
 *   **Query Params:** `?id=123`
 *   **Response:** `{ "message": "Deleted successfully" }`
+
+### 技術的注意: Superset Schema
+Gemini APIの `responseSchema` 制約により、Few-Shot例で使用するすべてのキーがスキーマに含まれている必要があります。本APIでは `ALL_KNOWN_KEYS` を使用してすべての既知キーを常にスキーマに含める「Superset Schema」戦略を採用しています。
 
 ---
 

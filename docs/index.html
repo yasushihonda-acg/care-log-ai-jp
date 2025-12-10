@@ -57,6 +57,7 @@
                     <a href="#database" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">2. データベース設計</a>
                     <a href="#api" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">3. API 仕様書</a>
                     <a href="#features" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">4. 機能仕様詳細</a>
+                    <a href="#changelog" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">5. 変更履歴</a>
                 </nav>
             </div>
             <div class="px-6 py-4 border-t border-gray-100 text-xs text-gray-400">
@@ -83,6 +84,26 @@
                 <h2>概要</h2>
                 <p><strong>プロジェクト名:</strong> AI介護記録アプリ (care-log-ai-jp)</p>
                 <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Flashモデル) で解析・構造化し、Vercel Postgresに保存・可視化するWebアプリケーションです。</p>
+                
+                <h2>技術スタック</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600">カテゴリ</th>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600">技術</th>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600">選定理由</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr><td class="px-4 py-2">Frontend</td><td class="px-4 py-2 font-mono text-blue-600">React (Vite)</td><td class="px-4 py-2 text-slate-500">高速な開発とモダンなUI構築</td></tr>
+                            <tr><td class="px-4 py-2">Styling</td><td class="px-4 py-2 font-mono text-blue-600">Tailwind CSS</td><td class="px-4 py-2 text-slate-500">レスポンシブ対応と迅速なデザイン適用</td></tr>
+                            <tr><td class="px-4 py-2">Backend</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Functions</td><td class="px-4 py-2 text-slate-500">サーバーレスで運用コスト削減</td></tr>
+                            <tr><td class="px-4 py-2">Database</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Postgres (Neon)</td><td class="px-4 py-2 text-slate-500">JSONB型による柔軟なデータ保存</td></tr>
+                            <tr><td class="px-4 py-2">AI Model</td><td class="px-4 py-2 font-mono text-blue-600">Gemini 2.5 Flash</td><td class="px-4 py-2 text-slate-500">低遅延・低コスト・高い日本語処理能力</td></tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 <h2>システム構成図</h2>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
@@ -174,6 +195,22 @@ sequenceDiagram
   "pulse": "72"
 }</code></pre>
                     </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <h4 class="font-bold text-sm text-slate-500 mb-2">排泄 (excretion)</h4>
+<pre class="text-xs bg-white p-2 rounded border border-slate-200"><code>{
+  "excretion_type": "尿",
+  "amount": "多量",
+  "incontinence": "あり"
+}</code></pre>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <h4 class="font-bold text-sm text-slate-500 mb-2">衛生 (hygiene)</h4>
+<pre class="text-xs bg-white p-2 rounded border border-slate-200"><code>{
+  "bath_type": "清拭",
+  "skin_condition": "発赤あり",
+  "notes": "軟膏塗布"
+}</code></pre>
+                    </div>
                 </div>
             </section>
 
@@ -251,6 +288,37 @@ sequenceDiagram
                 <ul>
                     <li><strong>自動キー生成:</strong> ユーザーは日本語ラベルを入力するだけで、システム用ID (<code>f_xxxx</code>) が自動生成されます。</li>
                 </ul>
+            </section>
+
+            <!-- 5. CHANGELOG -->
+            <section id="changelog" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+                <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <span class="bg-rose-100 text-rose-600 p-2 rounded-lg text-xl">5</span>
+                    変更履歴
+                </h1>
+                
+                <h2>2025-12-10 (Latest)</h2>
+                <div class="space-y-4">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+                        <h4 class="font-bold text-green-700 text-sm mb-2">Fixed</h4>
+                        <ul class="text-sm text-green-600 space-y-1">
+                            <li>AI解析の500エラー修正 (Superset Schema戦略)</li>
+                            <li>排泄フィールドの予約語衝突 (<code>type</code> → <code>excretion_type</code>)</li>
+                            <li>履歴表示の後方互換フォールバック</li>
+                        </ul>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h4 class="font-bold text-blue-700 text-sm mb-2">Added</h4>
+                        <ul class="text-sm text-blue-600 space-y-1">
+                            <li><code>ALL_KNOWN_KEYS</code> 定数によるSuperset Schema戦略</li>
+                            <li>CHANGELOG.md によるバージョン管理</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <p class="mt-4 text-sm text-slate-500">
+                    詳細は <a href="https://github.com/yasushihonda-acg/care-log-ai-jp/blob/main/docs/CHANGELOG.md" class="text-blue-600 hover:underline">CHANGELOG.md</a> を参照
+                </p>
             </section>
 
             <footer class="text-center text-slate-400 py-8 text-sm">
