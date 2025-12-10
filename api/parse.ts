@@ -1,5 +1,6 @@
 
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, SchemaType } from "@google/genai";
+type Schema = { type: string; properties?: Record<string, Schema>; required?: string[] };
 import { DEFAULT_FIELD_SETTINGS } from "../types"; // デフォルト定義をインポート
 
 // Initialize Gemini
@@ -83,11 +84,11 @@ export default async function handler(req: any, res: any) {
 
     // スキーマ構築 (All String) - Superset Schema戦略
     // allKeys（ユーザー設定から収集）+ ALL_KNOWN_KEYS（Few-Shot例で使用）をマージ
-    const detailsProperties: Record<string, Schema> = {};
+    const detailsProperties: Record<string, any> = {};
     const schemaKeys = new Set([...allKeys, ...ALL_KNOWN_KEYS]);
     schemaKeys.forEach(key => {
       if (key !== 'record_type' && key !== 'suggested_date') {
-        detailsProperties[key] = { type: Type.STRING };
+        detailsProperties[key] = { type: SchemaType.STRING };
       }
     });
 
@@ -167,11 +168,11 @@ export default async function handler(req: any, res: any) {
       config: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
+          type: SchemaType.OBJECT,
           properties: {
-            record_type: { type: Type.STRING },
-            details: { type: Type.OBJECT, properties: detailsProperties },
-            suggested_date: { type: Type.STRING }
+            record_type: { type: SchemaType.STRING },
+            details: { type: SchemaType.OBJECT, properties: detailsProperties },
+            suggested_date: { type: SchemaType.STRING }
           },
           required: ['record_type', 'details']
         }
@@ -187,6 +188,12 @@ export default async function handler(req: any, res: any) {
 
   } catch (error: any) {
     console.error('Gemini Parse Error:', error);
-    return res.status(500).json({ error: '解析に失敗しました', details: error.message });
+    console.error('Error stack:', error.stack);
+    return res.status(500).json({ 
+      error: '解析に失敗しました', 
+      details: error.message,
+      stack: error.stack,
+      name: error.name
+    });
   }
 }
