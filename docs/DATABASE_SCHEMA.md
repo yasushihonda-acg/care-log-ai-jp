@@ -45,7 +45,7 @@ CREATE TABLE care_records (
 ### 排泄 (`excretion`)
 ```json
 {
-  "type": "尿",
+  "excretion_type": "尿",
   "amount": "多量",
   "characteristics": "混濁なし",
   "incontinence": "あり"

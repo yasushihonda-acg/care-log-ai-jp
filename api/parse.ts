@@ -17,6 +17,22 @@ Object.entries(DEFAULT_FIELD_SETTINGS).forEach(([type, fields]) => {
   });
 });
 
+// 【Superset Schema 戦略】
+// Few-Shot例で使用するキーを含め、すべての既知キーをスキーマに含める
+// これにより、AIがFew-Shot例のキーを出力しても500エラーにならない
+const ALL_KNOWN_KEYS = [
+  // meal
+  'main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml',
+  // excretion
+  'excretion_type', 'amount', 'characteristics', 'incontinence',
+  // vital
+  'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2',
+  // hygiene
+  'bath_type', 'skin_condition', 'notes',
+  // other
+  'title', 'detail'
+];
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -65,9 +81,11 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // スキーマ構築 (All String)
+    // スキーマ構築 (All String) - Superset Schema戦略
+    // allKeys（ユーザー設定から収集）+ ALL_KNOWN_KEYS（Few-Shot例で使用）をマージ
     const detailsProperties: Record<string, Schema> = {};
-    allKeys.forEach(key => {
+    const schemaKeys = new Set([...allKeys, ...ALL_KNOWN_KEYS]);
+    schemaKeys.forEach(key => {
       if (key !== 'record_type' && key !== 'suggested_date') {
         detailsProperties[key] = { type: Type.STRING };
       }
@@ -130,7 +148,7 @@ export default async function handler(req: any, res: any) {
       {
         "record_type": "excretion",
         "details": {
-          "type": "尿",
+          "excretion_type": "尿",
           "amount": "多量",
           "incontinence": "あり"
         }

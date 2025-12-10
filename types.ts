@@ -45,7 +45,7 @@ export const DEFAULT_FIELD_SETTINGS: Record<string, FieldSetting[]> = {
     { key: 'fluid_ml', label: '水分摂取量(ml)', description: '摂取した水分の量。数値のみ（例：200）。' },
   ],
   excretion: [
-    { key: 'type', label: '種類(尿/便)', description: '排泄物の種類（尿、便）。' },
+    { key: 'excretion_type', label: '種類(尿/便)', description: '排泄物の種類（尿、便）。' },
     { key: 'amount', label: '量', description: '排泄量（多量、普通、少量など）。' },
     { key: 'characteristics', label: '性状・状態', description: '便や尿の状態（泥状、普通、血尿など）。' },
     { key: 'incontinence', label: '失禁有無', description: '失禁があったかどうか。' },

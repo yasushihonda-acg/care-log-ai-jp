@@ -25,6 +25,28 @@ AIに対して「ルール」を言葉で説明するのではなく、理想的
 ### サーバーサイド・メタデータ補完 (Fail-Safe)
 フロントエンドから送られてくるフィールド設定（`fieldSettings`）にメタデータ（`description`）が含まれていない場合（古いキャッシュ等の影響）、サーバー側で強制的にデフォルトのメタデータを適用し、AIへの指示漏れを防ぐ。
 
+### Superset Schema 戦略 (2025/12/10追加)
+Gemini APIの `responseSchema` は、Few-Shot例に含まれるキーがスキーマに定義されていないと500エラーを返す。この問題を回避するため、`ALL_KNOWN_KEYS` という定数ですべての既知キーを定義し、ユーザー設定に関わらず常にスキーマに含める「Superset Schema」戦略を採用。
+
+```typescript
+const ALL_KNOWN_KEYS = [
+  // meal
+  'main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml',
+  // excretion
+  'excretion_type', 'amount', 'characteristics', 'incontinence',
+  // vital
+  'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2',
+  // hygiene
+  'bath_type', 'skin_condition', 'notes',
+  // other
+  'title', 'detail'
+];
+```
+
+### キー命名規則
+*   **予約語回避:** JavaScriptの予約語（`type`等）との衝突を避けるため、排泄種類は `excretion_type` を使用。
+*   **後方互換性:** 既存データ（`type`キー）との互換性のため、`HistoryTab.tsx` ではフォールバック処理を実装。
+
 ## 3. 動的フィールド設定 (Settings)
 
 *   **保存場所:** `localStorage`

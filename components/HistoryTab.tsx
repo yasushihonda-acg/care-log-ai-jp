@@ -78,7 +78,8 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
         return mealParts.join(' ') || '食事記録';
 
       case 'excretion':
-        return `${details.type || ''} ${details.amount || ''} ${details.characteristics || ''}`;
+        const excType = details.excretion_type || details.type || '';
+        return `${excType} ${details.amount || ''} ${details.characteristics || ''}`.trim();
 
       case 'hygiene':
         return details.bath_type || details.notes || '衛生ケア';
