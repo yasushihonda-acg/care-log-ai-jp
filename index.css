@@ -1,4 +1,6 @@
-/* Tailwind CDNを使用するため、@tailwindディレクティブは削除 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 .safe-area-bottom {
   padding-bottom: constant(safe-area-inset-bottom); /* iOS 11.0 */
