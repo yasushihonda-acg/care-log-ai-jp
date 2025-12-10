@@ -85,7 +85,8 @@ const ALL_KNOWN_KEYS = [
 // Fields to exclude from AI response (these tend to be misused)
 const EXCLUDED_FIELDS = ['notes', 'title'];
 
-// Record type specific required fields for extraction priority
+// Record type specific required fields for extraction priority (for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PRIORITY_FIELDS: Record<string, string[]> = {
   meal: ['main_dish', 'amount_percent', 'fluid_type', 'fluid_ml', 'side_dish'],
   vital: ['temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2'],
