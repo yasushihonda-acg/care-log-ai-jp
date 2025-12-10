@@ -1,5 +1,7 @@
 # GCP/Firebase 移行計画書
 
+> **✅ 移行完了 (2025-12-10)** - このドキュメントは移行計画の履歴として保持されています。現在のシステム構成については [ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
+
 ## 1. 概要
 
 ### 1.1 移行理由
@@ -37,7 +39,7 @@
 
 ## 2. 技術スタック比較
 
-| コンポーネント | 現在 (Vercel) | 移行後 (GCP/Firebase) |
+| コンポーネント | Phase 0.5 (Vercel) | Phase 1 (GCP/Firebase) ✅ |
 |---------------|---------------|----------------------|
 | Frontend Hosting | Vercel | Firebase Hosting |
 | API/Functions | Vercel Functions | Cloud Functions 2nd Gen |
