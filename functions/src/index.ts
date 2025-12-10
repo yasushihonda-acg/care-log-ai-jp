@@ -262,9 +262,10 @@ ${fieldsDef}
         delete parsed.details[field];
       });
 
-      // Remove empty string values
+      // Remove empty, null, or "null" string values
       Object.keys(parsed.details).forEach(key => {
-        if (parsed.details[key] === '' || parsed.details[key] === null) {
+        const value = parsed.details[key];
+        if (value === '' || value === null || value === 'null' || value === undefined) {
           delete parsed.details[key];
         }
       });
@@ -315,6 +316,11 @@ ${fieldsDef}
           parsed.details.diastolic_bp = parsed.details.diastolic_bp || bpMatch[2];
         }
       }
+    }
+
+    // Clean up top-level null values
+    if (parsed.suggested_date === 'null' || parsed.suggested_date === null) {
+      delete parsed.suggested_date;
     }
 
     return res.status(200).json(parsed);
