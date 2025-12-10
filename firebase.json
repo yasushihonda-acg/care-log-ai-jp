@@ -8,27 +8,6 @@
     ],
     "rewrites": [
       {
-        "source": "/api/parse",
-        "run": {
-          "serviceId": "parse",
-          "region": "asia-northeast1"
-        }
-      },
-      {
-        "source": "/api/records",
-        "run": {
-          "serviceId": "records",
-          "region": "asia-northeast1"
-        }
-      },
-      {
-        "source": "/api/chat",
-        "run": {
-          "serviceId": "chat",
-          "region": "asia-northeast1"
-        }
-      },
-      {
         "source": "**",
         "destination": "/index.html"
       }

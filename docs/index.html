@@ -54,10 +54,12 @@
                 </div>
                 <nav class="space-y-1">
                     <a href="#architecture" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">1. アーキテクチャ設計</a>
-                    <a href="#database" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">2. データベース設計</a>
-                    <a href="#api" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">3. API 仕様書</a>
-                    <a href="#features" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">4. 機能仕様詳細</a>
-                    <a href="#changelog" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">5. 変更履歴</a>
+                    <a href="#gcp-migration" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">2. GCP/Firebase 移行</a>
+                    <a href="#cicd" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">3. CI/CD 設計</a>
+                    <a href="#database" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">4. データベース設計</a>
+                    <a href="#api" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">5. API 仕様書</a>
+                    <a href="#features" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">6. 機能仕様詳細</a>
+                    <a href="#changelog" class="block px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">7. 変更履歴</a>
                 </nav>
             </div>
             <div class="px-6 py-4 border-t border-gray-100 text-xs text-gray-400">
@@ -67,7 +69,7 @@
 
         <!-- Main Content -->
         <main class="flex-1 lg:ml-64 p-4 lg:p-12 max-w-5xl mx-auto w-full">
-            
+
             <!-- Mobile Header -->
             <div class="lg:hidden mb-8 pb-4 border-b border-gray-200">
                 <h1 class="text-2xl font-bold text-slate-900">AI Care Log Documentation</h1>
@@ -80,103 +82,225 @@
                     <span class="bg-blue-100 text-blue-600 p-2 rounded-lg text-xl">1</span>
                     アーキテクチャ設計
                 </h1>
-                
+
                 <h2>概要</h2>
                 <p><strong>プロジェクト名:</strong> AI介護記録アプリ (care-log-ai-jp)</p>
-                <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Flashモデル) で解析・構造化し、Vercel Postgresに保存・可視化するWebアプリケーションです。</p>
-                
+                <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Flashモデル) で解析・構造化し、保存・可視化するWebアプリケーションです。</p>
+
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 my-4">
+                    <p class="font-bold text-amber-700">移行中</p>
+                    <p class="text-sm text-amber-600 mt-1">
+                        Vercel無料枠の制限により、GCP/Firebaseへの移行を進めています。<br>
+                        詳細は「GCP/Firebase 移行」セクションを参照してください。
+                    </p>
+                </div>
+
                 <h2>技術スタック</h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                         <thead class="bg-slate-100">
                             <tr>
                                 <th class="px-4 py-2 text-left font-bold text-slate-600">カテゴリ</th>
-                                <th class="px-4 py-2 text-left font-bold text-slate-600">技術</th>
-                                <th class="px-4 py-2 text-left font-bold text-slate-600">選定理由</th>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600">現行 (Vercel)</th>
+                                <th class="px-4 py-2 text-left font-bold text-slate-600">移行後 (GCP)</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                            <tr><td class="px-4 py-2">Frontend</td><td class="px-4 py-2 font-mono text-blue-600">React (Vite)</td><td class="px-4 py-2 text-slate-500">高速な開発とモダンなUI構築</td></tr>
-                            <tr><td class="px-4 py-2">Styling</td><td class="px-4 py-2 font-mono text-blue-600">Tailwind CSS</td><td class="px-4 py-2 text-slate-500">レスポンシブ対応と迅速なデザイン適用</td></tr>
-                            <tr><td class="px-4 py-2">Backend</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Functions</td><td class="px-4 py-2 text-slate-500">サーバーレスで運用コスト削減</td></tr>
-                            <tr><td class="px-4 py-2">Database</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Postgres (Neon)</td><td class="px-4 py-2 text-slate-500">JSONB型による柔軟なデータ保存</td></tr>
-                            <tr><td class="px-4 py-2">AI Model</td><td class="px-4 py-2 font-mono text-blue-600">Gemini 2.5 Flash</td><td class="px-4 py-2 text-slate-500">低遅延・低コスト・高い日本語処理能力</td></tr>
+                            <tr><td class="px-4 py-2">Frontend</td><td class="px-4 py-2 font-mono text-blue-600">React (Vite)</td><td class="px-4 py-2 font-mono text-green-600">React (Vite)</td></tr>
+                            <tr><td class="px-4 py-2">Hosting</td><td class="px-4 py-2 font-mono text-blue-600">Vercel</td><td class="px-4 py-2 font-mono text-green-600">Firebase Hosting</td></tr>
+                            <tr><td class="px-4 py-2">Backend</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Functions</td><td class="px-4 py-2 font-mono text-green-600">Cloud Functions 2nd Gen</td></tr>
+                            <tr><td class="px-4 py-2">Database</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Postgres</td><td class="px-4 py-2 font-mono text-green-600">Firestore</td></tr>
+                            <tr><td class="px-4 py-2">AI Model</td><td class="px-4 py-2 font-mono text-blue-600">Gemini API (APIキー)</td><td class="px-4 py-2 font-mono text-green-600">Vertex AI (Workload Identity)</td></tr>
+                            <tr><td class="px-4 py-2">CI/CD</td><td class="px-4 py-2 font-mono text-blue-600">Vercel Git Integration</td><td class="px-4 py-2 font-mono text-green-600">GitHub Actions + OIDC</td></tr>
                         </tbody>
                     </table>
                 </div>
 
-                <h2>システム構成図</h2>
+                <h2>システム構成図 (GCP移行後)</h2>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
 <pre class="mermaid">
 graph TD
-    User["ユーザー (PC/Mobile)"] -->|"HTTPS / UI操作"| FE["Frontend (React/Vite)"]
-    
-    subgraph VercelPlatform ["Vercel Platform"]
-        FE -->|"API Call"| API["Serverless Functions (/api)"]
-        
-        API -->|"SQL Query"| DB[("Vercel Postgres")]
-        API -->|"GenAI Request"| AI["Google Gemini 2.5 Flash"]
+    User["ユーザー (PC/Mobile)"] -->|"HTTPS"| FH["Firebase Hosting"]
+
+    subgraph GCP ["Google Cloud Platform"]
+        FH -->|"Rewrite"| CF["Cloud Functions 2nd Gen"]
+        CF -->|"Query"| FS[("Firestore")]
+        CF -->|"Workload Identity"| VA["Vertex AI Gemini"]
     end
-    
-    subgraph ExternalServices ["External Services"]
-        AI -->|"Response"| API
-        DB -->|"Result"| API
+
+    subgraph CICD ["CI/CD"]
+        GHA["GitHub Actions"] -->|"OIDC Token"| WIF["Workload Identity Federation"]
+        WIF -->|"Short-lived Token"| CF
+        WIF -->|"Deploy"| FH
     end
 </pre>
                 </div>
 
-                <h2>データフロー (RAGチャット)</h2>
+                <h2>データフロー</h2>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
 <pre class="mermaid">
 sequenceDiagram
     participant U as "User"
     participant FE as "Frontend"
-    participant API as "Vercel Function"
-    participant DB as "Postgres"
-    participant AI as "Gemini 2.5 Flash"
+    participant CF as "Cloud Functions"
+    participant FS as "Firestore"
+    participant VA as "Vertex AI"
 
-    Note over U, AI: AI解析フロー
+    Note over U, VA: AI解析フロー
     U->>FE: 音声/テキスト入力
-    FE->>API: POST /api/parse (Text + Settings)
-    API->>AI: プロンプト送信 (Few-Shot Examples)
-    AI-->>API: JSON応答 (Structured Data)
-    API-->>FE: 解析結果
+    FE->>CF: POST /api/parse (Text + Settings)
+    CF->>VA: プロンプト送信 (Few-Shot Examples)
+    VA-->>CF: JSON応答 (Structured Data)
+    CF-->>FE: 解析結果
     U->>FE: 確認・修正・保存
-    FE->>API: POST /api/records
-    API->>DB: INSERT care_records
+    FE->>CF: POST /api/records
+    CF->>FS: Document追加
 
-    Note over U, AI: RAGチャットフロー
+    Note over U, VA: RAGチャットフロー
     U->>FE: 「最近の食事量は？」
-    FE->>API: POST /api/chat
-    API->>DB: SELECT * FROM records LIMIT 50
-    DB-->>API: 記録データ
-    API->>AI: 記録データ + 質問を送信 (Context Injection)
-    AI-->>API: 回答生成
-    API-->>FE: 回答表示
+    FE->>CF: POST /api/chat
+    CF->>FS: 直近50件取得
+    FS-->>CF: 記録データ
+    CF->>VA: 記録データ + 質問 (Context Injection)
+    VA-->>CF: 回答生成
+    CF-->>FE: 回答表示
 </pre>
                 </div>
             </section>
 
-            <!-- 2. DATABASE -->
-            <section id="database" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+            <!-- 2. GCP MIGRATION -->
+            <section id="gcp-migration" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
                 <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
                     <span class="bg-green-100 text-green-600 p-2 rounded-lg text-xl">2</span>
+                    GCP/Firebase 移行
+                </h1>
+
+                <h2>移行理由</h2>
+                <ul>
+                    <li><strong>Vercel無料枠の制限:</strong> デプロイ数・リクエスト数のレート制限</li>
+                    <li><strong>Workload Identity:</strong> APIキー不要のセキュアな認証</li>
+                    <li><strong>GCPエコシステム:</strong> Vertex AI, Firestore, Cloud Functionsのシームレスな連携</li>
+                </ul>
+
+                <h2>GCPプロジェクト情報</h2>
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <table class="text-sm w-full">
+                        <tr><td class="font-bold pr-4">Project ID:</td><td class="font-mono">care-log-ai-jp</td></tr>
+                        <tr><td class="font-bold pr-4">Project Number:</td><td class="font-mono">71778021308</td></tr>
+                        <tr><td class="font-bold pr-4">Region:</td><td class="font-mono">asia-northeast1</td></tr>
+                        <tr><td class="font-bold pr-4">Status:</td><td><span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs">TEST / 一時利用</span></td></tr>
+                    </table>
+                </div>
+
+                <h2>Workload Identity Federation</h2>
+                <p>GitHub ActionsからGCPへのデプロイは、サービスアカウントキーではなく<strong>Workload Identity Federation (OIDC)</strong>を使用します。</p>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
+<pre class="mermaid">
+sequenceDiagram
+    participant GHA as "GitHub Actions"
+    participant WIF as "Workload Identity Pool"
+    participant SA as "Service Account"
+    participant GCP as "GCP Resources"
+
+    GHA->>WIF: OIDC Token (JWT)
+    WIF->>WIF: Validate Token
+    WIF->>SA: Exchange for Access Token
+    SA-->>GHA: Short-lived Access Token
+    GHA->>GCP: Deploy (Functions/Hosting)
+</pre>
+                </div>
+
+                <h3>設定済みリソース</h3>
+                <ul>
+                    <li><strong>Pool:</strong> <code>github-pool</code></li>
+                    <li><strong>Provider:</strong> <code>github-provider</code></li>
+                    <li><strong>Service Account:</strong> <code>github-actions@care-log-ai-jp.iam.gserviceaccount.com</code></li>
+                </ul>
+
+                <h2>移行進捗</h2>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> GCPプロジェクト作成</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> 必要なAPI有効化</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> Firebaseプロジェクト紐付け</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> Firestoreデータベース作成</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> Workload Identity Federation設定</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> GitHub Actionsワークフロー作成</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> Cloud Functionsソースコード作成</div>
+                    <div class="flex items-center gap-2"><span class="text-amber-500">○</span> デプロイテスト</div>
+                    <div class="flex items-center gap-2"><span class="text-slate-400">○</span> フロントエンドAPI切り替え</div>
+                </div>
+            </section>
+
+            <!-- 3. CI/CD -->
+            <section id="cicd" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+                <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <span class="bg-purple-100 text-purple-600 p-2 rounded-lg text-xl">3</span>
+                    CI/CD 設計
+                </h1>
+
+                <h2>ワークフロー概要</h2>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
+<pre class="mermaid">
+graph LR
+    A["Push to main"] --> B["Build"]
+    B --> C["Deploy Functions"]
+    B --> D["Deploy Hosting"]
+
+    E["Pull Request"] --> F["Build"]
+    F --> G["Preview Deploy"]
+</pre>
+                </div>
+
+                <h2>トリガー条件</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">イベント</th>
+                                <th class="px-4 py-2 text-left">アクション</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-4 py-2 font-mono">push to main</td>
+                                <td class="px-4 py-2">本番デプロイ (Hosting + Functions)</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-mono">pull_request to main</td>
+                                <td class="px-4 py-2">プレビューデプロイ + テスト</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>セキュリティ</h2>
+                <ul>
+                    <li><strong>Keyless認証:</strong> サービスアカウントキー不要 (Workload Identity Federation)</li>
+                    <li><strong>最小権限:</strong> 必要なIAMロールのみ付与</li>
+                    <li><strong>リポジトリ制限:</strong> <code>yasushihonda-acg/care-log-ai-jp</code> のみ許可</li>
+                </ul>
+            </section>
+
+            <!-- 4. DATABASE -->
+            <section id="database" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
+                <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+                    <span class="bg-cyan-100 text-cyan-600 p-2 rounded-lg text-xl">4</span>
                     データベース設計
                 </h1>
 
-                <h2>テーブル定義 (care_records)</h2>
+                <h2>Firestore スキーマ</h2>
                 <div class="bg-slate-800 text-slate-50 p-4 rounded-lg overflow-x-auto my-4">
-<pre><code>CREATE TABLE care_records (
-  id SERIAL PRIMARY KEY,
-  record_type VARCHAR(50) NOT NULL, -- 'meal', 'vital', 'excretion', etc.
-  details JSONB NOT NULL,           -- 柔軟な構造化データ
-  recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);</code></pre>
+<pre><code>care_records/                    # コレクション
+  └── {documentId}/              # ドキュメント (auto-generated)
+        ├── record_type: string  # "meal", "vital", "excretion", etc.
+        ├── details: map         # 構造化データ
+        ├── recorded_at: timestamp
+        └── created_at: timestamp</code></pre>
                 </div>
 
-                <h2>JSONBデータ構造パターン</h2>
+                <h2>データ構造パターン</h2>
                 <p>AI解析の成功率を高めるため、詳細は基本的に<strong>String型</strong>として保存されます。</p>
-                
+
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
                         <h4 class="font-bold text-sm text-slate-500 mb-2">食事 (meal)</h4>
@@ -214,10 +338,10 @@ sequenceDiagram
                 </div>
             </section>
 
-            <!-- 3. API -->
+            <!-- 5. API -->
             <section id="api" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
                 <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                    <span class="bg-purple-100 text-purple-600 p-2 rounded-lg text-xl">3</span>
+                    <span class="bg-indigo-100 text-indigo-600 p-2 rounded-lg text-xl">5</span>
                     API 仕様書
                 </h1>
 
@@ -229,23 +353,42 @@ sequenceDiagram
   "text": "昼食は全粥8割、お茶200mlでした。",
   "fieldSettings": { ... } // description含む
 }</code></pre>
+                    <strong class="block mt-4">Response:</strong>
+<pre class="mt-2 text-xs"><code>{
+  "record_type": "meal",
+  "details": {
+    "main_dish": "全粥",
+    "amount_percent": "80",
+    "fluid_type": "お茶",
+    "fluid_ml": "200"
+  }
+}</code></pre>
                 </div>
 
                 <h3>GET /api/records</h3>
                 <p>記録一覧を取得します（最新100件）。</p>
 
+                <h3>POST /api/records</h3>
+                <p>新規記録を作成します。</p>
+
+                <h3>PUT /api/records</h3>
+                <p>既存記録を更新します（ID必須）。</p>
+
+                <h3>DELETE /api/records?id={id}</h3>
+                <p>指定IDの記録を削除します。</p>
+
                 <h3>POST /api/chat</h3>
                 <p>RAG (Retrieval-Augmented Generation) を利用したAI相談機能。直近50件の記録をコンテキストとして回答します。</p>
             </section>
 
-            <!-- 4. FEATURES -->
+            <!-- 6. FEATURES -->
             <section id="features" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
                 <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                    <span class="bg-orange-100 text-orange-600 p-2 rounded-lg text-xl">4</span>
+                    <span class="bg-orange-100 text-orange-600 p-2 rounded-lg text-xl">6</span>
                     機能仕様詳細
                 </h1>
 
-                <h2>AI解析ロジック (Pattern Recognition & Aggressive Few-Shot)</h2>
+                <h2>AI解析ロジック (Aggressive Few-Shot Strategy)</h2>
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 my-4">
                     <p class="font-bold text-blue-700">設計思想: Example-Driven Extraction</p>
                     <p class="text-sm text-blue-600 mt-1">
@@ -254,27 +397,7 @@ sequenceDiagram
                     </p>
                 </div>
 
-                <h3>戦略: Aggressive Few-Shot (徹底的な例示)</h3>
-                <p>プロンプトに以下のようなパターンを学習させています。</p>
-                
-                <div class="space-y-4 mt-4">
-                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                        <h4 class="font-bold text-sm text-slate-600">パターンA: 水分摂取の分離</h4>
-                        <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
-                            <div class="text-slate-500">Input</div>
-                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200">"お茶を200ml"</div>
-                            <div class="text-slate-500">Output</div>
-                            <div class="font-mono bg-white px-2 py-1 rounded border border-slate-200 text-xs">fluid_type: "お茶", fluid_ml: "200"</div>
-                        </div>
-                    </div>
-                </div>
-
-                <h3 class="mt-6">Fail-Safe: メタデータ補完</h3>
-                <p>
-                    古いキャッシュを持つユーザーからのリクエストでも精度を落とさないよう、サーバーサイドでフィールド設定のメタデータ（抽出ルール）を強制的に補完しています。
-                </p>
-
-                <h3 class="mt-6">Superset Schema 戦略</h3>
+                <h3>Superset Schema 戦略</h3>
                 <div class="bg-amber-50 border-l-4 border-amber-500 p-4 my-4">
                     <p class="font-bold text-amber-700">技術的課題と解決策</p>
                     <p class="text-sm text-amber-600 mt-1">
@@ -283,39 +406,57 @@ sequenceDiagram
                     </p>
                 </div>
 
+                <h3>Fail-Safe: メタデータ補完</h3>
+                <p>
+                    古いキャッシュを持つユーザーからのリクエストでも精度を落とさないよう、サーバーサイドでフィールド設定のメタデータ（抽出ルール）を強制的に補完しています。
+                </p>
+
                 <h2 class="mt-8">動的フィールド設定</h2>
                 <p>施設ごとに異なる記録項目に対応するため、<code>localStorage</code> を利用したマスター設定機能を実装しています。</p>
-                <ul>
-                    <li><strong>自動キー生成:</strong> ユーザーは日本語ラベルを入力するだけで、システム用ID (<code>f_xxxx</code>) が自動生成されます。</li>
-                </ul>
             </section>
 
-            <!-- 5. CHANGELOG -->
+            <!-- 7. CHANGELOG -->
             <section id="changelog" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8 prose max-w-none">
                 <h1 class="text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                    <span class="bg-rose-100 text-rose-600 p-2 rounded-lg text-xl">5</span>
+                    <span class="bg-rose-100 text-rose-600 p-2 rounded-lg text-xl">7</span>
                     変更履歴
                 </h1>
-                
+
                 <h2>2025-12-10 (Latest)</h2>
                 <div class="space-y-4">
                     <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                        <h4 class="font-bold text-green-700 text-sm mb-2">Fixed</h4>
+                        <h4 class="font-bold text-green-700 text-sm mb-2">Added - GCP/Firebase 移行</h4>
                         <ul class="text-sm text-green-600 space-y-1">
+                            <li>GCPプロジェクト作成 (<code>care-log-ai-jp</code>)</li>
+                            <li>Workload Identity Federation 設定</li>
+                            <li>GitHub Actions CI/CDワークフロー</li>
+                            <li>Cloud Functions ソースコード</li>
+                            <li>Firestoreデータベース作成</li>
+                            <li>Firebase Hosting 設定</li>
+                        </ul>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h4 class="font-bold text-blue-700 text-sm mb-2">Documentation</h4>
+                        <ul class="text-sm text-blue-600 space-y-1">
+                            <li>GCP_MIGRATION_PLAN.md 追加</li>
+                            <li>CICD_DESIGN.md 追加</li>
+                            <li>GitHub Pages (index.html) 大幅更新</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h2 class="mt-6">2025-12-10 (Earlier)</h2>
+                <div class="space-y-4">
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                        <h4 class="font-bold text-purple-700 text-sm mb-2">Fixed - AI解析エラー</h4>
+                        <ul class="text-sm text-purple-600 space-y-1">
                             <li>AI解析の500エラー修正 (Superset Schema戦略)</li>
                             <li>排泄フィールドの予約語衝突 (<code>type</code> → <code>excretion_type</code>)</li>
                             <li>履歴表示の後方互換フォールバック</li>
                         </ul>
                     </div>
-                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                        <h4 class="font-bold text-blue-700 text-sm mb-2">Added</h4>
-                        <ul class="text-sm text-blue-600 space-y-1">
-                            <li><code>ALL_KNOWN_KEYS</code> 定数によるSuperset Schema戦略</li>
-                            <li>CHANGELOG.md によるバージョン管理</li>
-                        </ul>
-                    </div>
                 </div>
-                
+
                 <p class="mt-4 text-sm text-slate-500">
                     詳細は <a href="https://github.com/yasushihonda-acg/care-log-ai-jp/blob/main/docs/CHANGELOG.md" class="text-blue-600 hover:underline">CHANGELOG.md</a> を参照
                 </p>
