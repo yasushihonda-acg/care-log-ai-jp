@@ -82,7 +82,7 @@
                 
                 <h2>概要</h2>
                 <p><strong>プロジェクト名:</strong> AI介護記録アプリ (care-log-ai-jp)</p>
-                <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Proモデル) で解析・構造化し、Vercel Postgresに保存・可視化するWebアプリケーションです。</p>
+                <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Flashモデル) で解析・構造化し、Vercel Postgresに保存・可視化するWebアプリケーションです。</p>
 
                 <h2>システム構成図</h2>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
@@ -94,7 +94,7 @@ graph TD
         FE -->|"API Call"| API["Serverless Functions (/api)"]
         
         API -->|"SQL Query"| DB[("Vercel Postgres")]
-        API -->|"GenAI Request"| AI["Google Gemini API"]
+        API -->|"GenAI Request"| AI["Google Gemini 2.5 Flash"]
     end
     
     subgraph ExternalServices ["External Services"]
@@ -112,13 +112,13 @@ sequenceDiagram
     participant FE as "Frontend"
     participant API as "Vercel Function"
     participant DB as "Postgres"
-    participant AI as "Gemini 2.5 Pro"
+    participant AI as "Gemini 2.5 Flash"
 
     Note over U, AI: AI解析フロー
     U->>FE: 音声/テキスト入力
     FE->>API: POST /api/parse (Text + Settings)
-    API->>AI: プロンプト送信 (Chain of Thought + Metadata)
-    AI-->>API: JSON応答 (Thought + Data)
+    API->>AI: プロンプト送信 (Few-Shot Examples)
+    AI-->>API: JSON応答 (Structured Data)
     API-->>FE: 解析結果
     U->>FE: 確認・修正・保存
     FE->>API: POST /api/records
@@ -208,25 +208,17 @@ sequenceDiagram
                     機能仕様詳細
                 </h1>
 
-                <h2>AI解析ロジック (Metadata-Driven & Pro Reasoning)</h2>
+                <h2>AI解析ロジック (Pattern Recognition & Aggressive Few-Shot)</h2>
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 my-4">
-                    <p class="font-bold text-blue-700">設計思想: Metadata-Driven Extraction</p>
+                    <p class="font-bold text-blue-700">設計思想: Example-Driven Extraction</p>
                     <p class="text-sm text-blue-600 mt-1">
-                        ラベル名だけでなく、各フィールドの「定義（Description）」をAIに与えることで、構造的な欠陥（Context Gap）を解消します。<br>
-                        さらに、Gemini 2.5 Proの推論能力を活用し、文脈からの厳密な分離を実現します。
+                        Gemini 2.5 Flashの高速なパターン認識能力を活かすため、複雑な論理指示ではなく「具体的な入出力例（Few-Shot）」を大量に提示する戦略を採用しています。<br>
+                        これにより、「お茶200ml」のような複合データも例に従ってスムーズに分離されます。
                     </p>
                 </div>
 
-                <h3>戦略1: Chain of Thought (思考の連鎖)</h3>
-                <p>AIはJSONを生成する前に、必ず <code>thought</code> フィールドで思考プロセスを出力します。</p>
-                <ul class="text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
-                    <li><strong>Analyze:</strong> 入力文を分解（お茶 / 200ml）</li>
-                    <li><strong>Rule Check:</strong> メタデータ（fluid_type=名称のみ）と照合</li>
-                    <li><strong>Map:</strong> JSON生成</li>
-                </ul>
-
-                <h3>戦略2: Ambiguity Resolution (曖昧性解消)</h3>
-                <p>「お茶200」のような複合データを適切に分離するためのFew-Shot学習データを組み込んでいます。</p>
+                <h3>戦略: Aggressive Few-Shot (徹底的な例示)</h3>
+                <p>プロンプトに以下のようなパターンを学習させています。</p>
                 
                 <div class="space-y-4 mt-4">
                     <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
@@ -240,11 +232,15 @@ sequenceDiagram
                     </div>
                 </div>
 
+                <h3 class="mt-6">Fail-Safe: メタデータ補完</h3>
+                <p>
+                    古いキャッシュを持つユーザーからのリクエストでも精度を落とさないよう、サーバーサイドでフィールド設定のメタデータ（抽出ルール）を強制的に補完しています。
+                </p>
+
                 <h2 class="mt-8">動的フィールド設定</h2>
                 <p>施設ごとに異なる記録項目に対応するため、<code>localStorage</code> を利用したマスター設定機能を実装しています。</p>
                 <ul>
                     <li><strong>自動キー生成:</strong> ユーザーは日本語ラベルを入力するだけで、システム用ID (<code>f_xxxx</code>) が自動生成されます。</li>
-                    <li><strong>メタデータ管理:</strong> 標準項目にはハードコードされた説明文（メタデータ）が付与されており、AIの判断を補強します。</li>
                 </ul>
             </section>
 

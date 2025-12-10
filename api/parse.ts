@@ -1,8 +1,21 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { DEFAULT_FIELD_SETTINGS } from "../types"; // デフォルト定義をインポート
 
-// Initialize Gemini with the API Key from environment variables
+// Initialize Gemini
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// 型定義のヘルパー
+// デフォルト設定の description をサーバーサイドで強制的に適用するためのマップを作成
+const DEFAULT_DESCRIPTIONS: Record<string, Record<string, string>> = {};
+Object.entries(DEFAULT_FIELD_SETTINGS).forEach(([type, fields]) => {
+  DEFAULT_DESCRIPTIONS[type] = {};
+  fields.forEach(f => {
+    if (f.description) {
+      DEFAULT_DESCRIPTIONS[type][f.key] = f.description;
+    }
+  });
+});
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -12,96 +25,137 @@ export default async function handler(req: any, res: any) {
   try {
     const body = req.body;
     const text = body.text;
-    const fieldSettings = body.fieldSettings; // フロントエンドから設定（メタデータ含む）を受け取る
+    let fieldSettings = body.fieldSettings; 
 
     if (!text) {
       return res.status(400).json({ error: 'テキスト入力が必要です' });
     }
 
-    // 1. 動的にプロンプトの「フィールド定義書」を作成
-    // ここで key, label だけでなく description (メタデータ) を含めるのが重要
-    let fieldsDef = "【フィールド定義（抽出ルール）】\n";
-    const allKeys = new Set<string>();
+    // 【Fail-Safe】
+    // フロントエンドから送られてきた設定に description が欠けている場合、
+    // サーバー側のマスターデータを使って補完する。
+    // これにより、ユーザーのブラウザキャッシュが古くてもAIには正しい指示が飛ぶ。
+    if (fieldSettings) {
+      Object.keys(fieldSettings).forEach(type => {
+        if (DEFAULT_DESCRIPTIONS[type]) {
+          fieldSettings[type] = fieldSettings[type].map((f: any) => {
+            // 既存のdescriptionがない、かつデフォルトに定義がある場合
+            if (!f.description && DEFAULT_DESCRIPTIONS[type][f.key]) {
+              return { ...f, description: DEFAULT_DESCRIPTIONS[type][f.key] };
+            }
+            return f;
+          });
+        }
+      });
+    }
 
-    // デフォルトキーの確保
-    ['thought', 'record_type', 'suggested_date'].forEach(k => allKeys.add(k));
+    // プロンプト用フィールド定義生成
+    let fieldsDef = "【抽出対象フィールド一覧】\n";
+    const allKeys = new Set<string>();
+    ['record_type', 'suggested_date'].forEach(k => allKeys.add(k));
 
     if (fieldSettings) {
       Object.entries(fieldSettings).forEach(([type, fields]: [string, any]) => {
         fieldsDef += `\n### 記録タイプ: ${type}\n`;
         fields.forEach((f: any) => {
           allKeys.add(f.key);
-          // AIへの強力な指示となるメタデータ行
-          const desc = f.description ? ` (ルール: ${f.description})` : "";
-          fieldsDef += `- キー: "${f.key}", 表示名: "${f.label}"${desc}\n`;
+          const desc = f.description ? ` (抽出ルール: ${f.description})` : "";
+          fieldsDef += `- キー: "${f.key}", ラベル: "${f.label}"${desc}\n`;
         });
       });
     }
 
-    // 2. スキーマ構築 (Loose Schema)
+    // スキーマ構築 (All String)
     const detailsProperties: Record<string, Schema> = {};
     allKeys.forEach(key => {
-      // thoughtなどはルートレベルだが、念のため全部Stringで受ける準備
-      if (key !== 'thought' && key !== 'record_type' && key !== 'suggested_date') {
+      if (key !== 'record_type' && key !== 'suggested_date') {
         detailsProperties[key] = { type: Type.STRING };
       }
     });
 
-    // 3. プロンプト構築
-    // Gemini 2.5 Proの推論能力を活かすため、Chain of Thoughtを促す指示を含める
+    // プロンプト構築 (Aggressive Few-Shot Strategy)
+    // ルールの説明は最小限にし、「例」を大量に見せることでFlashモデルにパターンを認識させる
     const prompt = `
-      あなたは高度な介護記録AIアシスタントです。
-      ユーザーの自然言語入力を分析し、定義されたフィールドへ正確にマッピングしてください。
+      あなたは介護記録入力支援AIです。
+      入力テキストから情報を抽出し、JSON形式で出力してください。
 
       入力テキスト: "${text}"
 
       ${fieldsDef}
 
-      【タスク実行プロセス】
-      1. **分析 (Analyze)**: 入力文に含まれる具体的な事実（品目、数値、状態など）をリストアップします。
-      2. **照合 (Check Definition)**: 各事実をフィールド定義（ルール）と照らし合わせます。
-          - 「お茶200ml」のように複合している情報は、ルールの違い（名称のみ vs 数値のみ）に基づいて分離します。
-          - 「8割」のように変換が必要なものは、ルール（数値のみ）に従い変換します。
-      3. **生成 (Generate)**: JSONデータを生成します。
+      【抽出パターン例 (これを真似してください)】
 
-      【Few-Shot Examples (学習データ)】
-
-      例1: 食事記録 (複合データの分離)
-      Input: "お昼ご飯は全粥を8割、お茶を200ml飲みました。"
-      Output:
+      例1: 食事 (水分分離のパターン)
+      User: "お昼ご飯は全粥を8割、お茶を200ml飲みました。"
+      JSON:
       {
-        "thought": "食事記録として認識。主食『全粥』。摂取率『8割』→ルールに従い80に変換。水分『お茶200ml』は複合データ。fluid_typeは名称のみなので『お茶』、fluid_mlは数値のみなので『200』に分離して抽出。",
         "record_type": "meal",
         "details": {
           "main_dish": "全粥",
-          "amount_percent": "80",
-          "fluid_type": "お茶",
-          "fluid_ml": "200"
+          "amount_percent": "80",  // "8割" -> "80" (単位なし)
+          "fluid_type": "お茶",    // 種類のみ
+          "fluid_ml": "200"        // 量のみ (ml削除)
         }
       }
 
-      【制約】
-      - 定義されていないキーは出力しないでください。
-      - 該当するデータがないフィールドは省略してください。
-      - 値は文字列として出力してください。
+      例2: 食事 (別パターン)
+      User: "夕食、ご飯全部食べた。味噌汁100。"
+      JSON:
+      {
+        "record_type": "meal",
+        "details": {
+          "main_dish": "ご飯",
+          "amount_percent": "100",
+          "fluid_type": "味噌汁",
+          "fluid_ml": "100"
+        }
+      }
+
+      例3: バイタル
+      User: "熱36.8度、血圧124の78、脈72"
+      JSON:
+      {
+        "record_type": "vital",
+        "details": {
+          "temperature": "36.8",
+          "systolic_bp": "124",
+          "diastolic_bp": "78",
+          "pulse": "72"
+        }
+      }
+
+      例4: 排泄
+      User: "14時に排尿多量、失禁あり"
+      JSON:
+      {
+        "record_type": "excretion",
+        "details": {
+          "type": "尿",
+          "amount": "多量",
+          "incontinence": "あり"
+        }
+      }
+
+      【重要ルール】
+      - 値はすべて文字列型(String)にしてください。
+      - 該当する情報がないフィールドはJSONに含めないでください。
+      - 可能な限り単位(ml, %, 度)は取り除いて数値だけにしてください。
     `;
 
-    // モデルを 'gemini-2.5-pro' に変更
-    // Proモデルは推論能力が高いため、Thinking Configなしでも十分な精度が出せます。
+    // モデルを Flash に戻す
     const geminiResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            thought: { type: Type.STRING, description: "抽出プロセスの思考" },
             record_type: { type: Type.STRING },
             details: { type: Type.OBJECT, properties: detailsProperties },
             suggested_date: { type: Type.STRING }
           },
-          required: ['thought', 'record_type', 'details']
+          required: ['record_type', 'details']
         }
       }
     });

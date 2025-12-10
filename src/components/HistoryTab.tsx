@@ -1,14 +1,14 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Activity, Utensils, Droplets, User, FileText, Filter, ArrowUpDown, ChevronRight, X, Calendar } from 'lucide-react';
+import { Activity, Utensils, Droplets, User, FileText, Filter, ArrowUpDown, ChevronRight, X, Calendar, Pencil, Trash2, Save, Plus, Loader2 } from 'lucide-react';
 import { CareRecord, RECORD_TYPE_LABELS, FieldSetting } from '../types';
 
 interface HistoryTabProps {
   records: CareRecord[];
   isLoading: boolean;
   fieldSettings: Record<string, FieldSetting[]>;
+  onRecordsChange: () => void; // データ更新時に親コンポーネントへ通知
 }
 
 const getIcon = (type: string, className = "w-5 h-5") => {
@@ -21,10 +21,23 @@ const getIcon = (type: string, className = "w-5 h-5") => {
   }
 };
 
-const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettings }) => {
+const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettings, onRecordsChange }) => {
   const [filterType, setFilterType] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [selectedRecord, setSelectedRecord] = useState<CareRecord | null>(null);
+  
+  // 編集モード用のState
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDetails, setEditDetails] = useState<Record<string, any>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  // モーダルが開いたときに初期化
+  useEffect(() => {
+    if (selectedRecord) {
+      setEditDetails(JSON.parse(JSON.stringify(selectedRecord.details))); // Deep copy
+      setIsEditing(false);
+    }
+  }, [selectedRecord]);
 
   // ラベル解決ヘルパー
   const getLabel = (recordType: string, key: string) => {
@@ -44,7 +57,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
   };
 
   // 一覧表示用の概要テキスト生成
-  const getSummary = (record: CareRecord) => {
+  const getSummary = (record: CareRecord): string => {
     const details = record.details;
     if (!details) return '';
 
@@ -58,7 +71,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
       
       case 'meal':
         const mealParts = [];
-        if (details.main_dish) mealParts.push(details.main_dish);
+        if (details.main_dish) mealParts.push(String(details.main_dish));
         if (details.amount_percent) mealParts.push(`${details.amount_percent}%`);
         if (details.fluid_ml) mealParts.push(`水${details.fluid_ml}ml`);
         return mealParts.join(' ') || '食事記録';
@@ -67,31 +80,103 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
         return `${details.type || ''} ${details.amount || ''} ${details.characteristics || ''}`;
 
       case 'hygiene':
-        return details.bath_type || details.notes || '衛生ケア';
+        return String(details.bath_type || details.notes || '衛生ケア');
 
       default:
-        return details.title || details.detail || Object.values(details).join(' ').slice(0, 20) + '...';
+        return String(details.title || details.detail || Object.values(details).join(' ').slice(0, 20) + '...');
     }
   };
 
   // フィルタリングとソート
   const filteredRecords = useMemo(() => {
     let result = [...records];
-    
-    // フィルター
     if (filterType !== 'all') {
       result = result.filter(r => r.record_type === filterType);
     }
-
-    // ソート
     result.sort((a, b) => {
       const dateA = new Date(a.recorded_at || 0).getTime();
       const dateB = new Date(b.recorded_at || 0).getTime();
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
-
     return result;
   }, [records, filterType, sortOrder]);
+
+  // 更新処理
+  const handleUpdate = async () => {
+    if (!selectedRecord) return;
+    setIsSaving(true);
+    try {
+      // 空文字のフィールドをクリーンアップするかは要件次第だが、
+      // ここでは入力されたまま保存する (数値変換などはInputTabほど厳密には行わない)
+      const res = await fetch('/api/records', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedRecord.id,
+          record_type: selectedRecord.record_type,
+          details: editDetails
+        }),
+      });
+
+      if (!res.ok) throw new Error('Update failed');
+      
+      onRecordsChange(); // データリフレッシュ
+      setSelectedRecord(null); // モーダルを閉じる
+    } catch (error) {
+      console.error(error);
+      alert('更新に失敗しました。');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 削除処理
+  const handleDelete = async () => {
+    if (!selectedRecord) return;
+    if (!confirm('この記録を削除しますか？\n削除すると元に戻せません。')) return;
+
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/records?id=${selectedRecord.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Delete failed');
+
+      onRecordsChange(); // データリフレッシュ
+      setSelectedRecord(null); // モーダルを閉じる
+    } catch (error) {
+      console.error(error);
+      alert('削除に失敗しました。');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 編集用ヘルパー
+  const updateDetailValue = (key: string, value: string) => {
+    // 数字であればNumber型に変換して保存を試みる
+    const num = Number(value);
+    const finalValue = (!isNaN(num) && value !== '') ? num : value;
+    setEditDetails(prev => ({ ...prev, [key]: finalValue }));
+  };
+
+  const removeDetailKey = (key: string) => {
+    const newDetails = { ...editDetails };
+    delete newDetails[key];
+    setEditDetails(newDetails);
+  };
+
+  const addDetailKey = () => {
+    const newKey = `item_${Object.keys(editDetails).length + 1}`;
+    setEditDetails(prev => ({ ...prev, [newKey]: '' }));
+  };
+
+  const renameDetailKey = (oldKey: string, newKey: string) => {
+    if (oldKey === newKey) return;
+    const { [oldKey]: value, ...rest } = editDetails;
+    setEditDetails({ ...rest, [newKey]: value });
+  };
 
   if (isLoading) {
     return (
@@ -187,9 +272,9 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
       {/* 詳細モーダル */}
       {selectedRecord && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             {/* モーダルヘッダー */}
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100">
                   {getIcon(selectedRecord.record_type, "w-6 h-6")}
@@ -206,49 +291,142 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={() => setSelectedRecord(null)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              {!isEditing && (
+                <button 
+                  onClick={() => setSelectedRecord(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              )}
             </div>
 
             {/* モーダルボディ */}
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
+            <div className="p-6 overflow-y-auto flex-1">
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                <dl className="grid grid-cols-1 gap-y-4">
-                  {getSortedKeys(selectedRecord.record_type, selectedRecord.details).map((key) => {
-                    const value = selectedRecord.details[key];
-                    if (value === '' || value === null || value === undefined) return null;
-                    
-                    return (
-                      <div key={key} className="flex flex-col border-b border-gray-200 pb-2 last:border-0 last:pb-0">
-                        <dt className="text-xs font-bold text-gray-500 mb-1">
-                          {getLabel(selectedRecord.record_type, key)}
-                        </dt>
-                        <dd className="text-base font-semibold text-gray-900 break-words pl-2">
-                          {String(value)}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
+                {isEditing ? (
+                  /* 編集モード */
+                  <div className="space-y-4">
+                     <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-gray-400 uppercase">内容編集</span>
+                        <button 
+                          onClick={addDetailKey}
+                          className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          <Plus size={14} /> 項目追加
+                        </button>
+                     </div>
+                     
+                     {getSortedKeys(selectedRecord.record_type, editDetails).map((key) => {
+                       const value = editDetails[key];
+                       const label = getLabel(selectedRecord.record_type, key);
+                       const isCustomKey = label === key; // ラベルとキーが同じ＝カスタムキーの可能性（簡易判定）
+
+                       return (
+                         <div key={key} className="flex gap-2 items-start">
+                           <div className="flex-1">
+                             <div className="mb-1">
+                               {isCustomKey ? (
+                                 <input
+                                   type="text"
+                                   value={key}
+                                   onChange={(e) => renameDetailKey(key, e.target.value)}
+                                   className="text-xs text-gray-700 font-bold bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none w-full"
+                                   placeholder="項目名"
+                                 />
+                               ) : (
+                                 <div className="text-xs font-bold text-gray-500">{label}</div>
+                               )}
+                             </div>
+                             <input
+                               type="text"
+                               value={value}
+                               onChange={(e) => updateDetailValue(key, e.target.value)}
+                               className="w-full p-2 text-sm border border-gray-200 rounded bg-white text-gray-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none"
+                             />
+                           </div>
+                           <button 
+                             onClick={() => removeDetailKey(key)}
+                             className="mt-6 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                           >
+                             <Trash2 size={16} />
+                           </button>
+                         </div>
+                       );
+                     })}
+                  </div>
+                ) : (
+                  /* 閲覧モード */
+                  <dl className="grid grid-cols-1 gap-y-4">
+                    {getSortedKeys(selectedRecord.record_type, selectedRecord.details).map((key) => {
+                      const value = selectedRecord.details[key];
+                      if (value === '' || value === null || value === undefined) return null;
+                      
+                      return (
+                        <div key={key} className="flex flex-col border-b border-gray-200 pb-2 last:border-0 last:pb-0">
+                          <dt className="text-xs font-bold text-gray-500 mb-1">
+                            {getLabel(selectedRecord.record_type, key)}
+                          </dt>
+                          <dd className="text-base font-semibold text-gray-900 break-words pl-2">
+                            {String(value)}
+                          </dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+                )}
               </div>
               
-              <div className="mt-6 flex justify-end">
+              <div className="mt-4 flex justify-end">
                 <span className="text-xs text-gray-400">Record ID: {selectedRecord.id}</span>
               </div>
             </div>
             
             {/* モーダルフッター */}
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-center">
-                <button
-                    onClick={() => setSelectedRecord(null)}
-                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors"
-                >
-                    閉じる
-                </button>
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 shrink-0">
+              {isEditing ? (
+                 <div className="flex gap-3">
+                   <button
+                     onClick={() => setIsEditing(false)}
+                     disabled={isSaving}
+                     className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                   >
+                     キャンセル
+                   </button>
+                   <button
+                     onClick={handleUpdate}
+                     disabled={isSaving}
+                     className="flex-1 py-3 flex justify-center items-center gap-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm"
+                   >
+                     {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                     保存する
+                   </button>
+                 </div>
+              ) : (
+                 <div className="flex gap-3">
+                   <button
+                     onClick={handleDelete}
+                     disabled={isSaving}
+                     className="p-3 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100"
+                     title="削除"
+                   >
+                     {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Trash2 size={20} />}
+                   </button>
+                   <button
+                     onClick={() => setIsEditing(true)}
+                     className="flex-1 py-3 flex justify-center items-center gap-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+                   >
+                     <Pencil size={18} />
+                     編集する
+                   </button>
+                   <button
+                     onClick={() => setSelectedRecord(null)}
+                     className="flex-1 py-3 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                   >
+                     閉じる
+                   </button>
+                 </div>
+              )}
             </div>
           </div>
         </div>
