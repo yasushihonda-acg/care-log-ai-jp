@@ -262,10 +262,30 @@ ${fieldsDef}
         delete parsed.details[field];
       });
 
-      // Remove empty, null, or "null" string values
+      // Remove empty, null, "null", or "なし" values
+      const invalidValues = ['', null, 'null', undefined, 'なし', 'ない', 'なし。', 'N/A', 'n/a'];
       Object.keys(parsed.details).forEach(key => {
         const value = parsed.details[key];
-        if (value === '' || value === null || value === 'null' || value === undefined) {
+        if (invalidValues.includes(value) || value === null || value === undefined) {
+          delete parsed.details[key];
+        }
+      });
+    }
+
+    // Record type specific field filtering
+    const VALID_FIELDS: Record<string, string[]> = {
+      meal: ['main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml'],
+      vital: ['temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2'],
+      excretion: ['excretion_type', 'amount', 'characteristics', 'incontinence'],
+      hygiene: ['bath_type', 'skin_condition'],
+      other: ['detail']
+    };
+
+    // Remove fields that don't belong to the record type
+    if (parsed.details && VALID_FIELDS[parsed.record_type]) {
+      const validFields = VALID_FIELDS[parsed.record_type];
+      Object.keys(parsed.details).forEach(key => {
+        if (!validFields.includes(key)) {
           delete parsed.details[key];
         }
       });
