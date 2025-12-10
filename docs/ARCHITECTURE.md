@@ -152,6 +152,7 @@ JavaScriptの予約語との衝突を避けるため、排泄種類は `type` �
 | [API仕様書](./API_REFERENCE.md) | エンドポイント詳細 |
 | [AI解析改善計画](./AI_PARSING_IMPROVEMENT.md) | プロンプト最適化 |
 | [音声入力仕様書](./VOICE_INPUT_SPEC.md) | Web Speech API実装 |
+| [CSVエクスポート仕様](./CSV_EXPORT_SPEC.md) | CSVダウンロード機能 |
 | [テストレポート](./TEST_REPORT.md) | APIテスト結果 |
 | [変更履歴](./CHANGELOG.md) | バージョン履歴 |
 
@@ -166,6 +167,7 @@ JavaScriptの予約語との衝突を避けるため、排泄種類は `type` �
 | 記録管理 (Records API) | ✅ 及第点 |
 | RAGチャット (Chat API) | ✅ 及第点 |
 | 音声入力 | ⚠️ 制限あり (長時間使用でもたつき) |
+| CSVエクスポート | ✅ v2.1.0で追加 |
 | CI/CD | ✅ 自動デプロイ稼働中 |
 
 **本番テスト利用開始可能**
