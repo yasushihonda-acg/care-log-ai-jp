@@ -73,14 +73,26 @@ const DEFAULT_FIELD_SETTINGS: Record<string, FieldSetting[]> = {
   ],
 };
 
-// Superset Schema - all known keys
+// Superset Schema - all known keys (excluding generic fields that confuse the model)
 const ALL_KNOWN_KEYS = [
   'main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml',
   'excretion_type', 'amount', 'characteristics', 'incontinence',
   'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2',
-  'bath_type', 'skin_condition', 'notes',
-  'title', 'detail'
+  'bath_type', 'skin_condition',
+  'detail'
 ];
+
+// Fields to exclude from AI response (these tend to be misused)
+const EXCLUDED_FIELDS = ['notes', 'title'];
+
+// Record type specific required fields for extraction priority
+const PRIORITY_FIELDS: Record<string, string[]> = {
+  meal: ['main_dish', 'amount_percent', 'fluid_type', 'fluid_ml', 'side_dish'],
+  vital: ['temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2'],
+  excretion: ['excretion_type', 'amount', 'characteristics', 'incontinence'],
+  hygiene: ['bath_type', 'skin_condition'],
+  other: ['detail']
+};
 
 // Default descriptions map
 const DEFAULT_DESCRIPTIONS: Record<string, Record<string, string>> = {};
@@ -147,60 +159,84 @@ parseApp.post('/', async (req, res) => {
       }
     });
 
-    // Build prompt with few-shot examples
+    // Build prompt with few-shot examples and strict extraction rules
     const prompt = `
-      あなたは介護記録入力支援AIです。
-      入力テキストから情報を抽出し、JSON形式で出力してください。
+あなたは介護記録の情報抽出専門AIです。入力テキストから【必ず】以下のルールに従って情報を抽出してください。
 
-      入力テキスト: "${text}"
+【入力テキスト】
+"${text}"
 
-      ${fieldsDef}
+${fieldsDef}
 
-      【抽出パターン例 (これを真似してください)】
+【絶対に守るべき抽出ルール】
+1. 数値変換ルール:
+   - 「8割」→ "80" (割は10倍して数値のみ)
+   - 「200ml」→ "200" (単位を除去)
+   - 「36.5度」→ "36.5" (単位を除去)
+   - 「120/80」または「120の80」→ systolic_bp: "120", diastolic_bp: "80"
 
-      例1: 食事 (水分分離のパターン)
-      User: "お昼ご飯は全粥を8割、お茶を200ml飲みました。"
-      JSON:
-      {
-        "record_type": "meal",
-        "details": {
-          "main_dish": "全粥",
-          "amount_percent": "80",
-          "fluid_type": "お茶",
-          "fluid_ml": "200"
-        }
-      }
+2. 食事(meal)の場合、以下を【必ず】抽出:
+   - main_dish: 主食の名前（全粥、ご飯、パン等）
+   - amount_percent: 摂取率（数値のみ、割は10倍）
+   - fluid_type: 水分の名前（お茶、水、牛乳等）
+   - fluid_ml: 水分量（数値のみ）
 
-      例2: バイタル
-      User: "熱36.8度、血圧124の78、脈72"
-      JSON:
-      {
-        "record_type": "vital",
-        "details": {
-          "temperature": "36.8",
-          "systolic_bp": "124",
-          "diastolic_bp": "78",
-          "pulse": "72"
-        }
-      }
+3. 禁止事項:
+   - notes フィールドは使わないでください
+   - title フィールドは使わないでください
+   - 入力テキストをそのまま値にしないでください
 
-      例3: 排泄
-      User: "14時に排尿多量、失禁あり"
-      JSON:
-      {
-        "record_type": "excretion",
-        "details": {
-          "excretion_type": "尿",
-          "amount": "多量",
-          "incontinence": "あり"
-        }
-      }
+【抽出例】
 
-      【重要ルール】
-      - 値はすべて文字列型(String)にしてください。
-      - 該当する情報がないフィールドはJSONに含めないでください。
-      - 可能な限り単位(ml, %, 度)は取り除いて数値だけにしてください。
-    `;
+入力: "お昼ご飯は全粥を8割、お茶を200ml飲みました"
+出力:
+{
+  "record_type": "meal",
+  "details": {
+    "main_dish": "全粥",
+    "amount_percent": "80",
+    "fluid_type": "お茶",
+    "fluid_ml": "200"
+  }
+}
+
+入力: "朝食パン1枚と牛乳150cc、主食5割"
+出力:
+{
+  "record_type": "meal",
+  "details": {
+    "main_dish": "パン",
+    "amount_percent": "50",
+    "fluid_type": "牛乳",
+    "fluid_ml": "150"
+  }
+}
+
+入力: "体温36.8、血圧124の78、脈72"
+出力:
+{
+  "record_type": "vital",
+  "details": {
+    "temperature": "36.8",
+    "systolic_bp": "124",
+    "diastolic_bp": "78",
+    "pulse": "72"
+  }
+}
+
+入力: "14時に排尿多量、失禁あり"
+出力:
+{
+  "record_type": "excretion",
+  "details": {
+    "excretion_type": "尿",
+    "amount": "多量",
+    "incontinence": "あり"
+  }
+}
+
+上記のルールと例に従って、入力テキストから情報を抽出してください。
+`;
 
     // Call Gemini via Vertex AI
     const response = await ai.models.generateContent({
@@ -226,7 +262,70 @@ parseApp.post('/', async (req, res) => {
       throw new Error('AIからの応答がありません');
     }
 
-    return res.status(200).json(JSON.parse(responseText));
+    const parsed = JSON.parse(responseText);
+
+    // Post-processing: Remove excluded fields
+    if (parsed.details) {
+      EXCLUDED_FIELDS.forEach(field => {
+        delete parsed.details[field];
+      });
+
+      // Remove empty string values
+      Object.keys(parsed.details).forEach(key => {
+        if (parsed.details[key] === '' || parsed.details[key] === null) {
+          delete parsed.details[key];
+        }
+      });
+    }
+
+    // Fallback extraction for meal records
+    if (parsed.record_type === 'meal' && parsed.details) {
+      // Fallback: Extract amount_percent from text (e.g., "8割" -> "80")
+      if (!parsed.details.amount_percent) {
+        const wariMatch = text.match(/(\d+)\s*割/);
+        if (wariMatch) {
+          parsed.details.amount_percent = String(parseInt(wariMatch[1]) * 10);
+        }
+      }
+
+      // Fallback: Extract fluid_ml from text (e.g., "200ml" or "200cc")
+      if (!parsed.details.fluid_ml) {
+        const mlMatch = text.match(/(\d+)\s*(ml|cc|ミリ)/i);
+        if (mlMatch) {
+          parsed.details.fluid_ml = mlMatch[1];
+        }
+      }
+
+      // Fallback: Extract fluid_type (common beverages)
+      if (!parsed.details.fluid_type && parsed.details.fluid_ml) {
+        const fluidMatch = text.match(/(お茶|水|牛乳|ジュース|コーヒー|紅茶|味噌汁|スープ)/);
+        if (fluidMatch) {
+          parsed.details.fluid_type = fluidMatch[1];
+        }
+      }
+    }
+
+    // Fallback extraction for vital records
+    if (parsed.record_type === 'vital' && parsed.details) {
+      // Fallback: Extract temperature
+      if (!parsed.details.temperature) {
+        const tempMatch = text.match(/(\d+\.?\d*)\s*度/);
+        if (tempMatch) {
+          parsed.details.temperature = tempMatch[1];
+        }
+      }
+
+      // Fallback: Extract blood pressure (120/80 or 120の80)
+      if (!parsed.details.systolic_bp || !parsed.details.diastolic_bp) {
+        const bpMatch = text.match(/(\d+)\s*[/の]\s*(\d+)/);
+        if (bpMatch) {
+          parsed.details.systolic_bp = parsed.details.systolic_bp || bpMatch[1];
+          parsed.details.diastolic_bp = parsed.details.diastolic_bp || bpMatch[2];
+        }
+      }
+    }
+
+    return res.status(200).json(parsed);
   } catch (error: any) {
     console.error('Parse Error:', error);
     return res.status(500).json({
