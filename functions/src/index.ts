@@ -1,0 +1,377 @@
+/**
+ * Cloud Functions for AI Care Log
+ * Using @google/genai with Vertex AI + Firestore
+ */
+
+import express from 'express';
+import cors from 'cors';
+import { Firestore } from '@google-cloud/firestore';
+import { GoogleGenAI } from '@google/genai';
+
+// Initialize Firestore
+const firestore = new Firestore();
+const COLLECTION_NAME = 'care_records';
+
+// Initialize Google Gen AI with Vertex AI
+const PROJECT_ID = process.env.GCP_PROJECT_ID || 'care-log-ai-jp';
+const LOCATION = process.env.GCP_REGION || 'asia-northeast1';
+
+const ai = new GoogleGenAI({
+  vertexai: true,
+  project: PROJECT_ID,
+  location: LOCATION,
+});
+
+// FieldSetting type
+interface FieldSetting {
+  key: string;
+  label: string;
+  description?: string;
+}
+
+// Default field settings
+const DEFAULT_FIELD_SETTINGS: Record<string, FieldSetting[]> = {
+  meal: [
+    { key: 'main_dish', label: '主食内容', description: '食べた主食の種類（例：全粥、ご飯、パン）。量は含めない。' },
+    { key: 'side_dish', label: '副食内容', description: '食べたおかずの内容。' },
+    { key: 'amount_percent', label: '摂取率(%)', description: '食事全体の摂取割合。数値のみ（例：80）。' },
+    { key: 'fluid_type', label: '水分種類', description: '摂取した水分の名称のみ（例：お茶、水）。量はここには入れない。' },
+    { key: 'fluid_ml', label: '水分摂取量(ml)', description: '摂取した水分の量。数値のみ（例：200）。' },
+  ],
+  excretion: [
+    { key: 'excretion_type', label: '種類(尿/便)', description: '排泄物の種類（尿、便）。' },
+    { key: 'amount', label: '量', description: '排泄量（多量、普通、少量など）。' },
+    { key: 'characteristics', label: '性状・状態', description: '便や尿の状態（泥状、普通、血尿など）。' },
+    { key: 'incontinence', label: '失禁有無', description: '失禁があったかどうか。' },
+  ],
+  vital: [
+    { key: 'temperature', label: '体温(℃)', description: '体温の数値（例：36.5）。' },
+    { key: 'systolic_bp', label: '血圧(上)', description: '収縮期血圧の数値（高い方）。' },
+    { key: 'diastolic_bp', label: '血圧(下)', description: '拡張期血圧の数値（低い方）。' },
+    { key: 'pulse', label: '脈拍(回/分)', description: '脈拍数。' },
+    { key: 'spo2', label: 'SpO2(%)', description: '酸素飽和度。' },
+  ],
+  hygiene: [
+    { key: 'bath_type', label: '入浴形態', description: '入浴の方法（全身浴、シャワー浴、清拭など）。' },
+    { key: 'skin_condition', label: '皮膚状態', description: '皮膚の異常や状態（発赤、剥離など）。' },
+    { key: 'notes', label: '特記事項', description: '処置内容や特記事項。' },
+  ],
+  other: [
+    { key: 'title', label: '件名', description: '記録のタイトル。' },
+    { key: 'detail', label: '詳細', description: '記録の詳細内容。' },
+  ],
+};
+
+// Superset Schema - all known keys
+const ALL_KNOWN_KEYS = [
+  'main_dish', 'side_dish', 'amount_percent', 'fluid_type', 'fluid_ml',
+  'excretion_type', 'amount', 'characteristics', 'incontinence',
+  'temperature', 'systolic_bp', 'diastolic_bp', 'pulse', 'spo2',
+  'bath_type', 'skin_condition', 'notes',
+  'title', 'detail'
+];
+
+// Default descriptions map
+const DEFAULT_DESCRIPTIONS: Record<string, Record<string, string>> = {};
+Object.entries(DEFAULT_FIELD_SETTINGS).forEach(([type, fields]) => {
+  DEFAULT_DESCRIPTIONS[type] = {};
+  fields.forEach(f => {
+    if (f.description) {
+      DEFAULT_DESCRIPTIONS[type][f.key] = f.description;
+    }
+  });
+});
+
+// ============================================================
+// Parse API - AI解析
+// ============================================================
+const parseApp = express();
+parseApp.use(cors());
+parseApp.use(express.json());
+
+parseApp.post('/', async (req, res) => {
+  try {
+    const { text, fieldSettings: clientFieldSettings } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'テキスト入力が必要です' });
+    }
+
+    // Apply default descriptions if missing
+    let fieldSettings = clientFieldSettings;
+    if (fieldSettings) {
+      Object.keys(fieldSettings).forEach(type => {
+        if (DEFAULT_DESCRIPTIONS[type]) {
+          fieldSettings[type] = fieldSettings[type].map((f: FieldSetting) => {
+            if (!f.description && DEFAULT_DESCRIPTIONS[type][f.key]) {
+              return { ...f, description: DEFAULT_DESCRIPTIONS[type][f.key] };
+            }
+            return f;
+          });
+        }
+      });
+    }
+
+    // Build field definitions for prompt
+    let fieldsDef = '【抽出対象フィールド一覧】\n';
+    const allKeys = new Set<string>(['record_type', 'suggested_date']);
+
+    if (fieldSettings) {
+      Object.entries(fieldSettings).forEach(([type, fields]: [string, any]) => {
+        fieldsDef += `\n### 記録タイプ: ${type}\n`;
+        fields.forEach((f: FieldSetting) => {
+          allKeys.add(f.key);
+          const desc = f.description ? ` (抽出ルール: ${f.description})` : '';
+          fieldsDef += `- キー: "${f.key}", ラベル: "${f.label}"${desc}\n`;
+        });
+      });
+    }
+
+    // Build schema properties
+    const detailsProperties: Record<string, { type: string }> = {};
+    const schemaKeys = new Set([...allKeys, ...ALL_KNOWN_KEYS]);
+    schemaKeys.forEach(key => {
+      if (key !== 'record_type' && key !== 'suggested_date') {
+        detailsProperties[key] = { type: 'string' };
+      }
+    });
+
+    // Build prompt with few-shot examples
+    const prompt = `
+      あなたは介護記録入力支援AIです。
+      入力テキストから情報を抽出し、JSON形式で出力してください。
+
+      入力テキスト: "${text}"
+
+      ${fieldsDef}
+
+      【抽出パターン例 (これを真似してください)】
+
+      例1: 食事 (水分分離のパターン)
+      User: "お昼ご飯は全粥を8割、お茶を200ml飲みました。"
+      JSON:
+      {
+        "record_type": "meal",
+        "details": {
+          "main_dish": "全粥",
+          "amount_percent": "80",
+          "fluid_type": "お茶",
+          "fluid_ml": "200"
+        }
+      }
+
+      例2: バイタル
+      User: "熱36.8度、血圧124の78、脈72"
+      JSON:
+      {
+        "record_type": "vital",
+        "details": {
+          "temperature": "36.8",
+          "systolic_bp": "124",
+          "diastolic_bp": "78",
+          "pulse": "72"
+        }
+      }
+
+      例3: 排泄
+      User: "14時に排尿多量、失禁あり"
+      JSON:
+      {
+        "record_type": "excretion",
+        "details": {
+          "excretion_type": "尿",
+          "amount": "多量",
+          "incontinence": "あり"
+        }
+      }
+
+      【重要ルール】
+      - 値はすべて文字列型(String)にしてください。
+      - 該当する情報がないフィールドはJSONに含めないでください。
+      - 可能な限り単位(ml, %, 度)は取り除いて数値だけにしてください。
+    `;
+
+    // Call Gemini via Vertex AI
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: {
+            record_type: { type: 'string' },
+            details: { type: 'object', properties: detailsProperties },
+            suggested_date: { type: 'string' }
+          },
+          required: ['record_type', 'details']
+        }
+      }
+    });
+
+    const responseText = response.text;
+
+    if (!responseText) {
+      throw new Error('AIからの応答がありません');
+    }
+
+    return res.status(200).json(JSON.parse(responseText));
+  } catch (error: any) {
+    console.error('Parse Error:', error);
+    return res.status(500).json({
+      error: '解析に失敗しました',
+      details: error.message
+    });
+  }
+});
+
+// ============================================================
+// Records API - CRUD操作
+// ============================================================
+const recordsApp = express();
+recordsApp.use(cors());
+recordsApp.use(express.json());
+
+// GET - 一覧取得
+recordsApp.get('/', async (req, res) => {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTION_NAME)
+      .orderBy('created_at', 'desc')
+      .limit(100)
+      .get();
+
+    const records = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    return res.status(200).json(records);
+  } catch (error: any) {
+    console.error('GET Error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST - 新規作成
+recordsApp.post('/', async (req, res) => {
+  try {
+    const { record_type, details, recorded_at } = req.body;
+
+    const docRef = await firestore.collection(COLLECTION_NAME).add({
+      record_type,
+      details,
+      recorded_at: recorded_at || new Date().toISOString(),
+      created_at: new Date().toISOString()
+    });
+
+    return res.status(201).json({
+      id: docRef.id,
+      message: 'Record created successfully'
+    });
+  } catch (error: any) {
+    console.error('POST Error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT - 更新
+recordsApp.put('/', async (req, res) => {
+  try {
+    const { id, record_type, details, recorded_at } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    await firestore.collection(COLLECTION_NAME).doc(id).update({
+      record_type,
+      details,
+      recorded_at,
+      updated_at: new Date().toISOString()
+    });
+
+    return res.status(200).json({ message: 'Record updated successfully' });
+  } catch (error: any) {
+    console.error('PUT Error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE - 削除
+recordsApp.delete('/', async (req, res) => {
+  try {
+    const id = req.query.id as string;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    await firestore.collection(COLLECTION_NAME).doc(id).delete();
+
+    return res.status(200).json({ message: 'Deleted successfully' });
+  } catch (error: any) {
+    console.error('DELETE Error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// Chat API - RAGチャット
+// ============================================================
+const chatApp = express();
+chatApp.use(cors());
+chatApp.use(express.json());
+
+chatApp.post('/', async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'メッセージが必要です' });
+    }
+
+    // Fetch recent records for context
+    const snapshot = await firestore
+      .collection(COLLECTION_NAME)
+      .orderBy('created_at', 'desc')
+      .limit(50)
+      .get();
+
+    const records = snapshot.docs.map(doc => doc.data());
+    const recordsContext = JSON.stringify(records, null, 2);
+
+    const prompt = `
+あなたは介護記録に関する相談に答えるAIアシスタントです。
+以下の記録データを参照して、ユーザーの質問に日本語で回答してください。
+
+【記録データ】
+${recordsContext}
+
+【ユーザーの質問】
+${message}
+
+【回答ルール】
+- 記録データに基づいて具体的に回答してください
+- 推測の場合は「推測ですが」と前置きしてください
+- 記録にない情報は「記録がありません」と回答してください
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const reply = response.text;
+
+    return res.status(200).json({ reply: reply || '回答を生成できませんでした' });
+  } catch (error: any) {
+    console.error('Chat Error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Export functions
+export const parse = parseApp;
+export const records = recordsApp;
+export const chat = chatApp;
