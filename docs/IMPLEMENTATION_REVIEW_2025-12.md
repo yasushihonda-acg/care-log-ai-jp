@@ -142,7 +142,74 @@ const ai = new GoogleGenAI({
 
 **影響なし**: SDKコードへの影響なし。マーケティング名称変更のみ。
 
-## 5. 結論
+## 5. セキュリティ設計: なぜSecret Managerが不要か
+
+### 5.1 現在のアーキテクチャのセキュリティ
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Secret Manager 不要の理由                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────┐       ┌─────────────────┐                  │
+│  │  Cloud Functions │       │    Vertex AI    │                  │
+│  │                  │       │                  │                  │
+│  │  認証方式:       │  ───▶ │  認証方式:       │                  │
+│  │  ADC (自動)      │       │  Workload       │                  │
+│  │                  │       │  Identity       │                  │
+│  └─────────────────┘       └─────────────────┘                  │
+│         │                                                        │
+│         │ ADC (Application Default Credentials)                  │
+│         ▼                                                        │
+│  ┌─────────────────┐                                             │
+│  │    Firestore    │                                             │
+│  │                  │                                             │
+│  │  認証: ADC       │  ※ サービスアカウントキー不要               │
+│  └─────────────────┘                                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 環境変数の分類
+
+| 変数名 | 用途 | 秘密性 | 管理方法 |
+|--------|------|--------|----------|
+| `VITE_API_BASE_URL` | Cloud Functions URL | **非秘密** (公開URL) | .env / ビルド時注入 |
+| `GCP_PROJECT_ID` | プロジェクト識別子 | **非秘密** | ハードコード可 |
+| `GCP_REGION` | リージョン | **非秘密** | ハードコード可 |
+
+### 5.3 従来の設計 (Secret Manager が必要だったケース)
+
+```typescript
+// ❌ 従来: APIキー認証 (Secret Manager必要)
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+```
+
+### 5.4 現在の設計 (Secret Manager 不要)
+
+```typescript
+// ✅ 現在: Workload Identity認証 (キーレス)
+const ai = new GoogleGenAI({
+  vertexai: true,
+  project: PROJECT_ID,
+  location: LOCATION,
+});
+// → ADCが自動で認証を処理
+```
+
+### 5.5 結論
+
+**Secret Managerは本プロジェクトでは不要**です。
+
+- Vertex AI: Workload Identity認証（キーレス）
+- Firestore: ADC認証（キーレス）
+- フロントエンド: 秘密情報なし
+
+将来的に外部APIキー（Stripe、SendGridなど）が必要になった場合は、その時点でSecret Managerの導入を検討します。
+
+---
+
+## 6. 結論
 
 | カテゴリ | 評価 |
 |----------|------|
