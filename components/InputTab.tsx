@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Mic, MicOff, Sparkles, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { ParseResponse, RECORD_TYPE_LABELS, FieldSetting } from '../types';
+import { API_ENDPOINTS } from '../config';
 
 interface InputTabProps {
   onRecordSaved: () => void;
@@ -55,10 +56,10 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
     setAiFilledKeys(new Set());
 
     try {
-      const res = await fetch('/api/parse', {
+      const res = await fetch(API_ENDPOINTS.parse, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           text: inputText,
           fieldSettings: fieldSettings // 設定情報を送信してAIに教える
         }),
@@ -130,7 +131,7 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
           }
       });
 
-      const res = await fetch('/api/records', {
+      const res = await fetch(API_ENDPOINTS.records, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

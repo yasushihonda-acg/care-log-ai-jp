@@ -7,6 +7,7 @@ import DashboardTab from './components/DashboardTab';
 import SettingsTab from './components/SettingsTab';
 import ChatTab from './components/ChatTab';
 import { CareRecord, DEFAULT_FIELD_SETTINGS, FieldSetting } from './types';
+import { API_ENDPOINTS } from './config';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'input' | 'history' | 'dashboard' | 'settings' | 'chat'>('input');
@@ -62,7 +63,7 @@ const App: React.FC = () => {
   const fetchRecords = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/records');
+      const res = await fetch(API_ENDPOINTS.records);
       if (res.ok) {
         const data = await res.json();
         setRecords(data);

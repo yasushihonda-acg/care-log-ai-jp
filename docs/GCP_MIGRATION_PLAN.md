@@ -161,7 +161,104 @@ docs/
   └── CICD_DESIGN.md           # CI/CD設計書
 ```
 
-## 8. コスト見積もり（無料枠）
+## 8. APIルーティング移行戦略
+
+### 8.1 問題の背景
+
+Firebase Hostingは静的ファイルホスティングのため、`/api/*`へのリクエストがHTMLを返してしまう。
+フロントエンドからのAPIコールがJSONではなくHTMLを受け取り、パースエラーが発生。
+
+```
+エラー: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+原因: /api/parse → index.html (SPA fallback) を返却
+```
+
+### 8.2 選択肢の比較
+
+| 方式 | 説明 | メリット | デメリット |
+|------|------|----------|------------|
+| **A. Cloud Run + Rewrite** | Firebase HostingからCloud Runへrewrite | 同一ドメイン、CORS不要 | Cloud Run URLが事前に必要 |
+| **B. Cloud Functions URL直接** | フロントエンドでCloud Functions URLを直接指定 | シンプル、即座に実装可能 | CORS設定必要、URL管理 |
+| **C. Firebase Functions** | Firebase CLIでFunctions管理 | Hosting連携が容易 | functions/ → functions/ の構成変更 |
+
+### 8.3 採用方式: B. Cloud Functions URL直接
+
+**理由:**
+1. Cloud Functionsは既に`functions/src/index.ts`で実装済み
+2. 環境変数でURLを管理すれば、本番/開発の切り替えが容易
+3. 段階的移行が可能（Vercel環境を維持しながらテスト）
+
+### 8.4 実装計画
+
+#### Step 1: Cloud Functionsのデプロイ
+```bash
+# gcloud CLIでデプロイ
+gcloud functions deploy parse \
+  --gen2 \
+  --runtime=nodejs20 \
+  --region=asia-northeast1 \
+  --source=functions \
+  --entry-point=parseApp \
+  --trigger-http \
+  --allow-unauthenticated
+```
+
+#### Step 2: 環境変数の導入
+```typescript
+// src/config.ts (新規作成)
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+```
+
+#### Step 3: フロントエンドのAPI呼び出し修正
+```typescript
+// 変更前
+fetch('/api/parse', { ... })
+
+// 変更後
+import { API_BASE_URL } from './config';
+fetch(`${API_BASE_URL}/parse`, { ... })
+```
+
+#### Step 4: 環境変数設定
+```bash
+# .env.local (開発用)
+VITE_API_BASE_URL=/api
+
+# .env.production (本番用)
+VITE_API_BASE_URL=https://asia-northeast1-care-log-ai-jp.cloudfunctions.net
+```
+
+### 8.5 移行後のアーキテクチャ
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        ユーザー                                   │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+        ┌───────────────────┴───────────────────┐
+        │                                       │
+        ▼                                       ▼
+┌───────────────────┐               ┌───────────────────────────┐
+│  Firebase Hosting │               │     Cloud Functions       │
+│  care-log-ai-jp   │               │  asia-northeast1          │
+│  .web.app         │               │  care-log-ai-jp           │
+│                   │               │  .cloudfunctions.net      │
+│  - index.html     │  HTTPS API    │                           │
+│  - assets/*.js    │ ────────────▶ │  /parse  (AI解析)         │
+│  - assets/*.css   │               │  /records (CRUD)          │
+│                   │               │  /chat    (RAG)           │
+└───────────────────┘               └─────────────┬─────────────┘
+                                                  │
+                                    ┌─────────────┴─────────────┐
+                                    │                           │
+                                    ▼                           ▼
+                          ┌─────────────────┐       ┌─────────────────┐
+                          │    Firestore    │       │   Vertex AI     │
+                          │   (データ保存)   │       │   Gemini 2.5    │
+                          └─────────────────┘       └─────────────────┘
+```
+
+## 9. コスト見積もり（無料枠）
 
 | サービス | 無料枠 |
 |----------|--------|

@@ -1,20 +1,31 @@
 /**
  * Cloud Functions for AI Care Log
- * Using @google/genai with Vertex AI + Firestore
+ * Using Firebase Functions v2 with Vertex AI + Firestore
  */
 
+import { onRequest } from 'firebase-functions/v2/https';
+import { setGlobalOptions } from 'firebase-functions/v2';
 import express from 'express';
 import cors from 'cors';
-import { Firestore } from '@google-cloud/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp } from 'firebase-admin/app';
 import { GoogleGenAI } from '@google/genai';
 
-// Initialize Firestore
-const firestore = new Firestore();
+// Initialize Firebase Admin
+initializeApp();
+const firestore = getFirestore();
 const COLLECTION_NAME = 'care_records';
+
+// Set global options for all functions
+setGlobalOptions({
+  region: 'asia-northeast1',
+  memory: '256MiB',
+  timeoutSeconds: 60,
+});
 
 // Initialize Google Gen AI with Vertex AI
 const PROJECT_ID = process.env.GCP_PROJECT_ID || 'care-log-ai-jp';
-const LOCATION = process.env.GCP_REGION || 'asia-northeast1';
+const LOCATION = 'asia-northeast1';
 
 const ai = new GoogleGenAI({
   vertexai: true,
@@ -86,7 +97,7 @@ Object.entries(DEFAULT_FIELD_SETTINGS).forEach(([type, fields]) => {
 // Parse API - AI解析
 // ============================================================
 const parseApp = express();
-parseApp.use(cors());
+parseApp.use(cors({ origin: true }));
 parseApp.use(express.json());
 
 parseApp.post('/', async (req, res) => {
@@ -229,7 +240,7 @@ parseApp.post('/', async (req, res) => {
 // Records API - CRUD操作
 // ============================================================
 const recordsApp = express();
-recordsApp.use(cors());
+recordsApp.use(cors({ origin: true }));
 recordsApp.use(express.json());
 
 // GET - 一覧取得
@@ -320,7 +331,7 @@ recordsApp.delete('/', async (req, res) => {
 // Chat API - RAGチャット
 // ============================================================
 const chatApp = express();
-chatApp.use(cors());
+chatApp.use(cors({ origin: true }));
 chatApp.use(express.json());
 
 chatApp.post('/', async (req, res) => {
@@ -371,7 +382,7 @@ ${message}
   }
 });
 
-// Export functions
-export const parse = parseApp;
-export const records = recordsApp;
-export const chat = chatApp;
+// Export Firebase Functions v2
+export const parse = onRequest(parseApp);
+export const records = onRequest(recordsApp);
+export const chat = onRequest(chatApp);

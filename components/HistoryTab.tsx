@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Activity, Utensils, Droplets, User, FileText, Filter, ArrowUpDown, ChevronRight, X, Calendar, Pencil, Trash2, Save, Plus, Loader2 } from 'lucide-react';
 import { CareRecord, RECORD_TYPE_LABELS, FieldSetting } from '../types';
+import { API_ENDPOINTS } from '../config';
 
 interface HistoryTabProps {
   records: CareRecord[];
@@ -110,7 +111,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
     try {
       // 空文字のフィールドをクリーンアップするかは要件次第だが、
       // ここでは入力されたまま保存する (数値変換などはInputTabほど厳密には行わない)
-      const res = await fetch('/api/records', {
+      const res = await fetch(API_ENDPOINTS.records, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -139,7 +140,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ records, isLoading, fieldSettin
 
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/records?id=${selectedRecord.id}`, {
+      const res = await fetch(`${API_ENDPOINTS.records}?id=${selectedRecord.id}`, {
         method: 'DELETE',
       });
 
