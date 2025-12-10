@@ -82,7 +82,7 @@
                 
                 <h2>概要</h2>
                 <p><strong>プロジェクト名:</strong> AI介護記録アプリ (care-log-ai-jp)</p>
-                <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Flashモデル) で解析・構造化し、Vercel Postgresに保存・可視化するWebアプリケーションです。</p>
+                <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Proモデル) で解析・構造化し、Vercel Postgresに保存・可視化するWebアプリケーションです。</p>
 
                 <h2>システム構成図</h2>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-6">
@@ -112,7 +112,7 @@ sequenceDiagram
     participant FE as "Frontend"
     participant API as "Vercel Function"
     participant DB as "Postgres"
-    participant AI as "Gemini 2.5"
+    participant AI as "Gemini 2.5 Pro"
 
     Note over U, AI: AI解析フロー
     U->>FE: 音声/テキスト入力
@@ -208,12 +208,12 @@ sequenceDiagram
                     機能仕様詳細
                 </h1>
 
-                <h2>AI解析ロジック (メタデータ駆動 & ハイブリッド設計)</h2>
+                <h2>AI解析ロジック (Metadata-Driven & Pro Reasoning)</h2>
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 my-4">
                     <p class="font-bold text-blue-700">設計思想: Metadata-Driven Extraction</p>
                     <p class="text-sm text-blue-600 mt-1">
                         ラベル名だけでなく、各フィールドの「定義（Description）」をAIに与えることで、構造的な欠陥（Context Gap）を解消します。<br>
-                        これにより「お茶はfluid_type」「200mlはfluid_ml」といった厳密な分離が可能になります。
+                        さらに、Gemini 2.5 Proの推論能力を活用し、文脈からの厳密な分離を実現します。
                     </p>
                 </div>
 

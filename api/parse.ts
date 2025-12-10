@@ -20,10 +20,10 @@ export default async function handler(req: any, res: any) {
 
     // 1. 動的にプロンプトの「フィールド定義書」を作成
     // ここで key, label だけでなく description (メタデータ) を含めるのが重要
-    let fieldsDef = "【フィールド定義（このルールを厳守してください）】\n";
+    let fieldsDef = "【フィールド定義（抽出ルール）】\n";
     const allKeys = new Set<string>();
 
-    // デフォルトキーの確保（万が一設定が空の場合用）
+    // デフォルトキーの確保
     ['thought', 'record_type', 'suggested_date'].forEach(k => allKeys.add(k));
 
     if (fieldSettings) {
@@ -47,30 +47,30 @@ export default async function handler(req: any, res: any) {
       }
     });
 
-    // 3. プロンプト構築 (Chain of Thought & Metadata Driven)
+    // 3. プロンプト構築
+    // Gemini 2.5 Proの推論能力を活かすため、Chain of Thoughtを促す指示を含める
     const prompt = `
-      あなたは介護記録の構造化を行うAIスペシャリストです。
-      ユーザーの入力文から、適切な「記録タイプ(record_type)」を選択し、定義された「詳細データ(details)」を抽出してください。
+      あなたは高度な介護記録AIアシスタントです。
+      ユーザーの自然言語入力を分析し、定義されたフィールドへ正確にマッピングしてください。
 
       入力テキスト: "${text}"
 
       ${fieldsDef}
 
-      【解析ステップ (Chain of Thought)】
-      JSONを出力する前に、必ず 'thought' フィールドで以下の思考を行ってください。
-      1. **要素分解**: 入力文を「名詞」「数値」「単位」などの要素に分解する。
-      2. **ルール照合**: 上記の「フィールド定義（特にルール部分）」を厳密に確認する。
-      3. **曖昧性解消**: 
-         - 「お茶200ml」のように名称と数値が混ざっている場合、定義を見て「名称のみ」のフィールドと「数値のみ」のフィールドに正しく分離する。
-         - 定義に「数値のみ」とある場合、単位(ml, %, ℃など)は削除する。
+      【タスク実行プロセス】
+      1. **分析 (Analyze)**: 入力文に含まれる具体的な事実（品目、数値、状態など）をリストアップします。
+      2. **照合 (Check Definition)**: 各事実をフィールド定義（ルール）と照らし合わせます。
+          - 「お茶200ml」のように複合している情報は、ルールの違い（名称のみ vs 数値のみ）に基づいて分離します。
+          - 「8割」のように変換が必要なものは、ルール（数値のみ）に従い変換します。
+      3. **生成 (Generate)**: JSONデータを生成します。
 
       【Few-Shot Examples (学習データ)】
 
-      例1: 食事 (水分分離のケース)
-      Input: "昼食は全粥8割、お茶200ml"
+      例1: 食事記録 (複合データの分離)
+      Input: "お昼ご飯は全粥を8割、お茶を200ml飲みました。"
       Output:
       {
-        "thought": "食事記録。主食は全粥、摂取率は8割。水分は『種類』と『量』に分離する必要がある。定義『fluid_type』は名称のみ、『fluid_ml』は数値のみ。したがって、種類『お茶』は fluid_type、量『200』は fluid_ml に割り当てる。",
+        "thought": "食事記録として認識。主食『全粥』。摂取率『8割』→ルールに従い80に変換。水分『お茶200ml』は複合データ。fluid_typeは名称のみなので『お茶』、fluid_mlは数値のみなので『200』に分離して抽出。",
         "record_type": "meal",
         "details": {
           "main_dish": "全粥",
@@ -80,34 +80,23 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      例2: バイタル
-      Input: "熱36.8、血圧124の78"
-      Output:
-      {
-        "thought": "バイタル記録。熱(体温)は36.8。血圧は上124、下78。定義に従い temperature, systolic_bp, diastolic_bp にマッピング。",
-        "record_type": "vital",
-        "details": {
-          "temperature": "36.8",
-          "systolic_bp": "124",
-          "diastolic_bp": "78"
-        }
-      }
-
       【制約】
-      - 定義されていないキーは勝手に作らないでください。
-      - 該当するデータがないフィールドは出力に含めないでください。
-      - 値は基本的に文字列として出力してください。
+      - 定義されていないキーは出力しないでください。
+      - 該当するデータがないフィールドは省略してください。
+      - 値は文字列として出力してください。
     `;
 
+    // モデルを 'gemini-2.5-pro' に変更
+    // Proモデルは推論能力が高いため、Thinking Configなしでも十分な精度が出せます。
     const geminiResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-pro',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            thought: { type: Type.STRING, description: "抽出に至る思考プロセス" },
+            thought: { type: Type.STRING, description: "抽出プロセスの思考" },
             record_type: { type: Type.STRING },
             details: { type: Type.OBJECT, properties: detailsProperties },
             suggested_date: { type: Type.STRING }
