@@ -87,11 +87,12 @@
                 <p><strong>プロジェクト名:</strong> AI介護記録アプリ (care-log-ai-jp)</p>
                 <p>音声または自然言語テキストで入力された介護記録をGoogle Gemini (Flashモデル) で解析・構造化し、保存・可視化するWebアプリケーションです。</p>
 
-                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 my-4">
-                    <p class="font-bold text-amber-700">移行中</p>
-                    <p class="text-sm text-amber-600 mt-1">
-                        Vercel無料枠の制限により、GCP/Firebaseへの移行を進めています。<br>
-                        詳細は「GCP/Firebase 移行」セクションを参照してください。
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 my-4">
+                    <p class="font-bold text-green-700">移行完了</p>
+                    <p class="text-sm text-green-600 mt-1">
+                        GCP/Firebaseへの移行が完了しました。<br>
+                        <strong>本番URL:</strong> <a href="https://care-log-ai-jp.web.app" class="underline">https://care-log-ai-jp.web.app</a><br>
+                        <strong>API Base:</strong> <code class="text-xs">https://asia-northeast1-care-log-ai-jp.cloudfunctions.net</code>
                     </p>
                 </div>
 
@@ -226,9 +227,10 @@ sequenceDiagram
                     <div class="flex items-center gap-2"><span class="text-green-500">✓</span> Workload Identity Federation設定</div>
                     <div class="flex items-center gap-2"><span class="text-green-500">✓</span> GitHub Actionsワークフロー作成</div>
                     <div class="flex items-center gap-2"><span class="text-green-500">✓</span> Cloud Functionsソースコード作成</div>
-                    <div class="flex items-center gap-2"><span class="text-amber-500">○</span> デプロイテスト</div>
-                    <div class="flex items-center gap-2"><span class="text-slate-400">○</span> フロントエンドAPI切り替え</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> デプロイテスト</div>
+                    <div class="flex items-center gap-2"><span class="text-green-500">✓</span> フロントエンドAPI切り替え</div>
                 </div>
+                <p class="text-sm text-green-600 mt-4 font-medium">✅ すべての移行ステップが完了しました (2025-12-10)</p>
             </section>
 
             <!-- 3. CI/CD -->
@@ -294,7 +296,6 @@ graph LR
   └── {documentId}/              # ドキュメント (auto-generated)
         ├── record_type: string  # "meal", "vital", "excretion", etc.
         ├── details: map         # 構造化データ
-        ├── recorded_at: timestamp
         └── created_at: timestamp</code></pre>
                 </div>
 
