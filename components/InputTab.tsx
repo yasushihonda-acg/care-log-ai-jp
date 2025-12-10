@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Mic, MicOff, Sparkles, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { ParseResponse, RECORD_TYPE_LABELS, FieldSetting } from '../types';
 import { API_ENDPOINTS } from '../config';
@@ -17,35 +17,92 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
   const [parsedData, setParsedData] = useState<ParseResponse | null>(null);
   const [aiFilledKeys, setAiFilledKeys] = useState<Set<string>>(new Set());
 
+  // 音声認識インスタンスを保持するref
+  const recognitionRef = useRef<any>(null);
+  // 明示的な停止フラグ
+  const isStoppingRef = useRef(false);
+
   // Web Speech API Setup
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       console.warn('Speech Recognition not supported in this browser.');
       return;
     }
+
+    // クリーンアップ
+    return () => {
+      if (recognitionRef.current) {
+        isStoppingRef.current = true;
+        recognitionRef.current.stop();
+      }
+    };
   }, []);
 
   const toggleListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
     if (isListening) {
+      // 停止処理
+      isStoppingRef.current = true;
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setIsListening(false);
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInputText((prev) => prev + (prev ? ' ' : '') + transcript);
-      };
-      recognition.start();
+    if (!SpeechRecognition) {
+      alert('このブラウザは音声入力に対応していません。');
+      return;
     }
+
+    // 新しい認識インスタンスを作成
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ja-JP';
+    recognition.continuous = true;      // 連続認識モード（自動停止しない）
+    recognition.interimResults = false; // 確定結果のみ取得
+
+    recognition.onstart = () => {
+      isStoppingRef.current = false;
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      // 明示的な停止でない場合は自動再開
+      if (!isStoppingRef.current && recognitionRef.current) {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.warn('Recognition restart failed:', e);
+          setIsListening(false);
+        }
+      } else {
+        setIsListening(false);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      if (event.error === 'not-allowed') {
+        alert('マイクへのアクセスが許可されていません。ブラウザの設定を確認してください。');
+        isStoppingRef.current = true;
+        setIsListening(false);
+      }
+      // no-speech エラーは無視（無音状態が続いた場合）
+    };
+
+    recognition.onresult = (event: any) => {
+      // 最新の確定結果を取得
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          const transcript = event.results[i][0].transcript;
+          setInputText((prev) => prev + (prev ? ' ' : '') + transcript);
+        }
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   // AI解析実行
