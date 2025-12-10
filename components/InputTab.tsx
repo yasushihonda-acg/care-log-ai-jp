@@ -38,16 +38,37 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
     };
   }, []);
 
+  // 音声認識を再開する関数
+  const restartRecognition = () => {
+    if (isStoppingRef.current || !recognitionRef.current) return;
+
+    // 少し遅延を入れて安定性を向上
+    setTimeout(() => {
+      if (isStoppingRef.current || !recognitionRef.current) return;
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        // 既に開始済みなどのエラーは無視
+        console.warn('Recognition restart:', e);
+      }
+    }, 100);
+  };
+
   const toggleListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (isListening) {
-      // 停止処理
+      // 停止処理 - フラグを先に設定してから停止
       isStoppingRef.current = true;
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
       setIsListening(false);
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.warn('Recognition stop:', e);
+        }
+        recognitionRef.current = null;
+      }
       return;
     }
 
@@ -56,39 +77,57 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
       return;
     }
 
+    // 停止フラグをリセット
+    isStoppingRef.current = false;
+
     // 新しい認識インスタンスを作成
     const recognition = new SpeechRecognition();
     recognition.lang = 'ja-JP';
-    recognition.continuous = true;      // 連続認識モード（自動停止しない）
-    recognition.interimResults = false; // 確定結果のみ取得
+    recognition.continuous = true;      // 連続認識モード
+    recognition.interimResults = false; // 確定結果のみ取得（安定性重視）
 
     recognition.onstart = () => {
-      isStoppingRef.current = false;
-      setIsListening(true);
+      // 停止フラグが立っていなければ録音中状態を維持
+      if (!isStoppingRef.current) {
+        setIsListening(true);
+      }
     };
 
     recognition.onend = () => {
       // 明示的な停止でない場合は自動再開
-      if (!isStoppingRef.current && recognitionRef.current) {
-        try {
-          recognition.start();
-        } catch (e) {
-          console.warn('Recognition restart failed:', e);
-          setIsListening(false);
-        }
+      // ブラウザは無音が続くと勝手にonendを発火するため、
+      // ユーザーが停止ボタンを押すまで再開し続ける
+      if (!isStoppingRef.current) {
+        restartRecognition();
       } else {
         setIsListening(false);
+        recognitionRef.current = null;
       }
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      if (event.error === 'not-allowed') {
+      const error = event.error;
+      console.log('Speech recognition event:', error);
+
+      // 致命的でないエラーは無視して継続
+      // no-speech: 無音が続いた場合
+      // aborted: 認識が中断された場合
+      if (error === 'no-speech' || error === 'aborted') {
+        // onendが呼ばれるので、そこで再開される
+        return;
+      }
+
+      // マイク権限エラーは致命的
+      if (error === 'not-allowed') {
         alert('マイクへのアクセスが許可されていません。ブラウザの設定を確認してください。');
         isStoppingRef.current = true;
         setIsListening(false);
+        recognitionRef.current = null;
+        return;
       }
-      // no-speech エラーは無視（無音状態が続いた場合）
+
+      // ネットワークエラーなどは再開を試みる
+      // onendで再開される
     };
 
     recognition.onresult = (event: any) => {
@@ -102,7 +141,17 @@ const InputTab: React.FC<InputTabProps> = ({ onRecordSaved, fieldSettings }) => 
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+
+    // 録音中状態を先に設定（UIの即時反映）
+    setIsListening(true);
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error('Recognition start failed:', e);
+      setIsListening(false);
+      recognitionRef.current = null;
+    }
   };
 
   // AI解析実行
